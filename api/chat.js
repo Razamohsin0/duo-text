@@ -9,15 +9,22 @@ const pusher = new Pusher({
 });
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+  // 1. Tell the browser to not wait for a cache check
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+
+  if (req.method !== 'POST') {
+    return res.status(405).send('Method Not Allowed');
+  }
 
   const { user, text } = req.body;
 
-  // This triggers the message to everyone subscribed to 'chat-room'
-  await pusher.trigger("chat-room", "new-message", {
+  // 2. REMOVED 'await'. We fire the message to Pusher 
+  // and immediately tell the user "Success" without waiting.
+  pusher.trigger("chat-room", "new-message", {
     user: user,
     text: text
   });
 
+  // 3. Respond immediately
   res.status(200).json({ status: "Success" });
 }
