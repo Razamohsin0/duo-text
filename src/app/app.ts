@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone } from '@angular/core'; // Added NgZone
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Pusher from 'pusher-js';
@@ -7,7 +7,7 @@ import Pusher from 'pusher-js';
   selector: 'app-root',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './app.html' // Double check if this is app.html or app.component.html
+  templateUrl: './app.html' 
 })
 export class AppComponent implements OnInit {
   userName = '';
@@ -17,8 +17,10 @@ export class AppComponent implements OnInit {
   private pusher: any;
   private channel: any;
 
+  // We inject NgZone here to force the UI to update
+  constructor(private ngZone: NgZone) {}
+
   ngOnInit() {
-    // Force WebSockets for the fastest possible connection
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
       cluster: 'ap2',
       forceTLS: true,
@@ -28,11 +30,13 @@ export class AppComponent implements OnInit {
     this.channel = this.pusher.subscribe('chat-room');
     
     this.channel.bind('new-message', (data: any) => {
-      // FIX: Only add the message if it's from someone else
-      // This prevents the "double message" bug
-      if (data.user !== this.userName) {
-        this.messages.push(data);
-      }
+      // We wrap this in ngZone.run so the message appears 
+      // the MOMENT it arrives, without needing a click.
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.messages.push(data);
+        }
+      });
     });
   }
 
@@ -40,18 +44,12 @@ export class AppComponent implements OnInit {
     if (this.nameInput.trim()) this.userName = this.nameInput;
   }
 
-  async send() {
+  send() {
     if (this.newMessage.trim()) {
       const msg = { user: this.userName, text: this.newMessage };
-
-      // 1. Show it on your screen INSTANTLY
       this.messages.push(msg); 
-      
-      const messageToSend = this.newMessage;
       this.newMessage = ''; 
 
-      // 2. Send to Vercel/Pusher in the background
-      // We don't 'await' this so the UI stays snappy
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
