@@ -9,22 +9,19 @@ const pusher = new Pusher({
 });
 
 export default async function handler(req, res) {
-  // 1. Tell the browser to not wait for a cache check
-  res.setHeader('Cache-Control', 'no-store, max-age=0');
-
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
-  }
+  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
   const { user, text } = req.body;
 
-  // 2. REMOVED 'await'. We fire the message to Pusher 
-  // and immediately tell the user "Success" without waiting.
-  pusher.trigger("chat-room", "new-message", {
-    user: user,
-    text: text
-  });
-
-  // 3. Respond immediately
-  res.status(200).json({ status: "Success" });
+  try {
+    // We await this so Vercel finishes the job before closing the connection
+    await pusher.trigger("chat-room", "new-message", { user, text });
+    
+    // Performance header to keep the route warm
+    res.setHeader('Connection', 'keep-alive');
+    return res.status(200).json({ status: "Success" });
+  } catch (error) {
+    console.error("Pusher Error:", error);
+    return res.status(500).json({ error: "Failed to send" });
+  }
 }
