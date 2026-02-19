@@ -9,8 +9,8 @@
 
   <div *ngIf="userName" style="display: contents;">
     <div class="header">
-      <span style="color: #8ab4f8;">ACTIVE SESSION: {{ userName }}</span>
-      <span style="color: #5f6368; font-size: 0.6rem;">SECURE_CHANNEL_v2.0</span>
+      <span style="color: #8ab4f8;">SESSION: {{ userName }}</span>
+      <span style="color: #5f6368;">v2.0_SECURE</span>
     </div>
 
     <div class="messages-list" #scrollMe>
@@ -20,7 +20,9 @@
         <div class="message-text">{{ msg.text }}</div>
         
         <div class="status-container" *ngIf="msg.user === userName">
-          <span class="status-text">{{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}</span>
+          <span class="status-text">
+            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+          </span>
           <div class="status-glyph" [class.synced]="seenMessages.has(msg.id)"></div>
         </div>
       </div>
@@ -28,7 +30,7 @@
 
     <div class="input-wrapper">
       <div class="input-area">
-        <input [(ngModel)]="newMessage" placeholder="Message DuoText..." (keyup.enter)="send()">
+        <input [(ngModel)]="newMessage" placeholder="Message..." (keyup.enter)="send()">
         <button (click)="send()">▲</button>
       </div>
     </div>

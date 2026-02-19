@@ -26,25 +26,28 @@ export class AppComponent implements OnInit, AfterViewChecked {
   ngOnInit() {
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
       cluster: 'ap2',
-      forceTLS: true,
-      enabledTransports: ['ws', 'wss'] 
+      forceTLS: true
     });
 
     this.channel = this.pusher.subscribe('chat-room');
     
+    // Listen for Messages
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         const exists = this.messages.find(m => m.id === data.id);
         if (data.user !== this.userName && !exists) {
           this.messages.push(data);
-          this.markAsSeen(data.id); // Tell sender we saw it
+          // Handshake: Tell sender we received this ID
+          this.markAsSeen(data.id);
         }
         this.cdr.detectChanges();
       });
     });
 
+    // Listen for Seen Receipts
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
+        console.log("Syncing ID:", data.id);
         this.seenMessages.add(data.id);
         this.cdr.detectChanges();
       });
@@ -67,7 +70,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   markAsSeen(messageId: string) {
-    if (!messageId) return;
     fetch('/api/seen', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -77,7 +79,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
   async send() {
     if (!this.newMessage.trim()) return;
-    const messageId = `msg-${this.userName}-${Date.now()}`;
+    
+    // Generate unique ID locally first
+    const messageId = `id-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const msg = { id: messageId, user: this.userName, text: this.newMessage };
 
     this.messages.push(msg); 
