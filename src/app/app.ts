@@ -24,35 +24,44 @@ export class AppComponent implements OnInit, AfterViewChecked {
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit() {
-    this.pusher = new Pusher('f67a69ab8d352765a811', { 
-      cluster: 'ap2',
-      forceTLS: true
-    });
+  this.pusher = new Pusher('f67a69ab8d352765a811', { 
+    cluster: 'ap2',
+    forceTLS: true
+  });
 
-    this.channel = this.pusher.subscribe('chat-room');
-    
-    // Listen for Messages
-    this.channel.bind('new-message', (data: any) => {
-      this.ngZone.run(() => {
-        const exists = this.messages.find(m => m.id === data.id);
-        if (data.user !== this.userName && !exists) {
-          this.messages.push(data);
-          // Handshake: Tell sender we received this ID
+  this.channel = this.pusher.subscribe('chat-room');
+  
+  this.channel.bind('new-message', (data: any) => {
+    this.ngZone.run(() => {
+      const exists = this.messages.find(m => m.id === data.id);
+      if (data.user !== this.userName && !exists) {
+        this.messages.push(data);
+        
+        // ONLY mark as seen if the user is actually looking at the page
+        if (document.hasFocus()) {
           this.markAsSeen(data.id);
+        } else {
+          // If tab is hidden, wait until they click back into the tab
+          const viewListener = () => {
+            if (document.hasFocus()) {
+              this.markAsSeen(data.id);
+              window.removeEventListener('focus', viewListener);
+            }
+          };
+          window.addEventListener('focus', viewListener);
         }
-        this.cdr.detectChanges();
-      });
+      }
+      this.cdr.detectChanges();
     });
+  });
 
-    // Listen for Seen Receipts
-    this.channel.bind('message-seen', (data: any) => {
-      this.ngZone.run(() => {
-        console.log("Syncing ID:", data.id);
-        this.seenMessages.add(data.id);
-        this.cdr.detectChanges();
-      });
+  this.channel.bind('message-seen', (data: any) => {
+    this.ngZone.run(() => {
+      this.seenMessages.add(data.id);
+      this.cdr.detectChanges();
     });
-  }
+  });
+}
 
   ngAfterViewChecked() { this.scrollToBottom(); } 
 
