@@ -12,14 +12,21 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
   const { user, text } = req.body;
+  // Create a unique ID for this specific message
+  const messageId = `msg-${Date.now()}`; 
 
   try {
-    // We await this so Vercel finishes the job before closing the connection
-    await pusher.trigger("chat-room", "new-message", { user, text });
+    // We now send the ID and a Timestamp with the message
+    await pusher.trigger("chat-room", "new-message", { 
+      id: messageId,
+      user, 
+      text,
+      timestamp: new Date().toISOString()
+    });
     
-    // Performance header to keep the route warm
     res.setHeader('Connection', 'keep-alive');
-    return res.status(200).json({ status: "Success" });
+    // Return the ID to the sender so they can track it
+    return res.status(200).json({ id: messageId, status: "UPLINKED" });
   } catch (error) {
     console.error("Pusher Error:", error);
     return res.status(500).json({ error: "Failed to send" });

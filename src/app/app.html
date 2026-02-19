@@ -1,22 +1,41 @@
-<div style="max-width: 500px; margin: 50px auto; font-family: Arial, sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
-  <h2 style="color: #007bff;">Duo Text</h2>
-
-  <div *ngIf="!userName">
-    <input [(ngModel)]="nameInput" style="width: 70%; padding: 10px;" placeholder="What's your name?">
-    <button (click)="setUserName()" style="padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer;">Join</button>
+<div class="chat-container">
+  <div *ngIf="!userName" class="input-wrapper" style="margin-top: 25vh; text-align: center;">
+    <h2 style="letter-spacing: 4px; font-weight: 300; opacity: 0.8;">INITIATE PROTOCOL</h2>
+    <div class="input-area" style="max-width: 400px; margin: 0 auto;">
+      <input [(ngModel)]="nameInput" placeholder="Identity..." (keyup.enter)="setUserName()">
+      <button (click)="setUserName()">➔</button>
+    </div>
   </div>
 
-  <div *ngIf="userName">
-    <p>Logged in as: <b>{{ userName }}</b></p>
-    <div style="height: 300px; border: 1px solid #eee; overflow-y: auto; padding: 10px; background: #f9f9f9; margin-bottom: 10px;">
-      <div *ngFor="let msg of messages" style="margin-bottom: 10px;">
-        <span [style.color]="msg.user === userName ? '#007bff' : '#555'">
-          <b>{{ msg.user }}:</b>
-        </span> {{ msg.text }}
+  <div *ngIf="userName" style="display: contents;">
+    <div style="padding: 15px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.7rem; letter-spacing: 2px; color: #8ab4f8;">ACTIVE SESSION: {{ userName }}</span>
+      <span style="font-size: 0.7rem; color: #5f6368;">SECURE_CHANNEL_v2.0</span>
+    </div>
+
+    <div class="messages-list" #scrollMe>
+      <div *ngFor="let msg of messages" 
+           [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
+        <span class="user-label">{{ msg.user }}</span>
+        <div class="message-text">{{ msg.text }}</div>
+        
+        <div class="status-container" *ngIf="msg.user === userName">
+          <span class="status-text">
+            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+          </span>
+          <div class="status-glyph" [class.synced]="seenMessages.has(msg.id)"></div>
+        </div>
       </div>
     </div>
-    
-    <input [(ngModel)]="newMessage" (keyup.enter)="send()" style="width: 70%; padding: 10px;" placeholder="Message...">
-    <button (click)="send()" style="padding: 10px 20px; background: #28a745; color: white; border: none; cursor: pointer;">Send</button>
+
+    <div class="input-wrapper">
+      <div class="input-area">
+        <input [(ngModel)]="newMessage" placeholder="Message DuoText..." (keyup.enter)="send()">
+        <button (click)="send()">▲</button>
+      </div>
+      <p style="text-align: center; font-size: 0.65rem; color: #5f6368; margin-top: 15px; letter-spacing: 1px;">
+        ENCRYPTED TERMINAL // DUOTEXT v2.0
+      </p>
+    </div>
   </div>
 </div>
