@@ -24,44 +24,56 @@ export class AppComponent implements OnInit, AfterViewChecked {
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit() {
-  this.pusher = new Pusher('f67a69ab8d352765a811', { 
-    cluster: 'ap2',
-    forceTLS: true
-  });
+    this.pusher = new Pusher('f67a69ab8d352765a811', { 
+      cluster: 'ap2',
+      forceTLS: true
+    });
 
-  this.channel = this.pusher.subscribe('chat-room');
-  
-  this.channel.bind('new-message', (data: any) => {
-    this.ngZone.run(() => {
-      const exists = this.messages.find(m => m.id === data.id);
-      if (data.user !== this.userName && !exists) {
-        this.messages.push(data);
-        
-        // ONLY mark as seen if the user is actually looking at the page
-        if (document.hasFocus()) {
-          this.markAsSeen(data.id);
-        } else {
-          // If tab is hidden, wait until they click back into the tab
-          const viewListener = () => {
-            if (document.hasFocus()) {
-              this.markAsSeen(data.id);
-              window.removeEventListener('focus', viewListener);
-            }
-          };
-          window.addEventListener('focus', viewListener);
+    this.channel = this.pusher.subscribe('chat-room');
+    
+    this.channel.bind('new-message', (data: any) => {
+      this.ngZone.run(() => {
+        const exists = this.messages.find(m => m.id === data.id);
+        if (data.user !== this.userName && !exists) {
+          this.messages.push(data);
+          
+          // Instead of immediate marking, we observe the element
+          this.waitForVisibility(data.id);
         }
-      }
-      this.cdr.detectChanges();
+        this.cdr.detectChanges();
+      });
     });
-  });
 
-  this.channel.bind('message-seen', (data: any) => {
-    this.ngZone.run(() => {
-      this.seenMessages.add(data.id);
-      this.cdr.detectChanges();
+    this.channel.bind('message-seen', (data: any) => {
+      this.ngZone.run(() => {
+        this.seenMessages.add(data.id);
+        this.cdr.detectChanges();
+      });
     });
-  });
-}
+  }
+
+  // ADVANCED: Only marks seen when the message bubble is actually in the viewport
+  waitForVisibility(messageId: string) {
+    setTimeout(() => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          // Only fire if the message is visible AND the tab is active
+          if (entry.isIntersecting && document.hasFocus()) {
+            this.markAsSeen(messageId);
+            observer.disconnect(); // Stop watching once seen
+          }
+        });
+      }, { threshold: 0.8 }); // 80% of the bubble must be visible
+
+      // Find the specific message element we just added
+      const elements = document.querySelectorAll('.message-item.other');
+      const lastElement = elements[elements.length - 1];
+      
+      if (lastElement) {
+        observer.observe(lastElement);
+      }
+    }, 100);
+  }
 
   ngAfterViewChecked() { this.scrollToBottom(); } 
 
@@ -89,7 +101,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
   async send() {
     if (!this.newMessage.trim()) return;
     
-    // Generate unique ID locally first
     const messageId = `id-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const msg = { id: messageId, user: this.userName, text: this.newMessage };
 
