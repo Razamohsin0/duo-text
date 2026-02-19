@@ -36,8 +36,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
         const exists = this.messages.find(m => m.id === data.id);
         if (data.user !== this.userName && !exists) {
           this.messages.push(data);
-          
-          // Instead of immediate marking, we observe the element
           this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
@@ -52,26 +50,44 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  // ADVANCED: Only marks seen when the message bubble is actually in the viewport
+  // Pulls last 50 messages from Mumbai Redis
+  async loadHistory() {
+    try {
+      const res = await fetch('/api/history');
+      const data = await res.json();
+      this.ngZone.run(() => {
+        this.messages = data;
+        this.cdr.detectChanges();
+        
+        // After history loads, mark the very last message as seen
+        if (this.messages.length > 0) {
+          const lastMsg = this.messages[this.messages.length - 1];
+          if (lastMsg.user !== this.userName) {
+            this.markAsSeen(lastMsg.id);
+          }
+        }
+        
+        setTimeout(() => this.scrollToBottom(), 100);
+      });
+    } catch (e) {
+      console.error("Historical Uplink Failed", e);
+    }
+  }
+
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          // Only fire if the message is visible AND the tab is active
           if (entry.isIntersecting && document.hasFocus()) {
             this.markAsSeen(messageId);
-            observer.disconnect(); // Stop watching once seen
+            observer.disconnect();
           }
         });
-      }, { threshold: 0.8 }); // 80% of the bubble must be visible
+      }, { threshold: 0.8 });
 
-      // Find the specific message element we just added
       const elements = document.querySelectorAll('.message-item.other');
       const lastElement = elements[elements.length - 1];
-      
-      if (lastElement) {
-        observer.observe(lastElement);
-      }
+      if (lastElement) observer.observe(lastElement);
     }, 100);
   }
 
@@ -86,6 +102,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   setUserName() {
     if (this.nameInput.trim()) {
       this.userName = this.nameInput;
+      this.loadHistory(); // Load stored messages immediately on login
       this.cdr.detectChanges();
     }
   }
@@ -109,6 +126,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
     this.newMessage = ''; 
     this.cdr.detectChanges(); 
 
+    // This hits api/chat.js which now saves to Redis before broadcasting
     await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
