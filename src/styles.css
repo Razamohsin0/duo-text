@@ -1,193 +1,51 @@
-/* 1. FONT & BASE SETUP */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
 
 body {
-  background-color: #0b0b0d; /* OLED Black */
+  background-color: #0b0b0d;
   color: #e3e3e3;
   font-family: 'Plus Jakarta Sans', sans-serif;
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
-/* 2. BACKGROUND GLOW EFFECT */
-body::before {
-  content: "";
-  position: fixed;
-  top: -10%;
-  left: -10%;
-  width: 40%;
-  height: 40%;
-  background: radial-gradient(circle, rgba(138, 180, 248, 0.05) 0%, transparent 70%);
-  z-index: -1;
-}
+.chat-container { max-width: 850px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; }
 
-/* 3. LAYOUT CONTAINER */
-.chat-container {
-  max-width: 850px;
-  margin: 0 auto;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+.header { padding: 15px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; font-size: 0.7rem; letter-spacing: 2px; }
 
-/* 4. MESSAGES LIST AREA */
-.messages-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 60px 20px;
-  scrollbar-width: thin;
-  scrollbar-color: #333 transparent;
-  display: flex;
-  flex-direction: column;
-}
+.messages-list { flex: 1; overflow-y: auto; padding: 40px 20px; display: flex; flex-direction: column; }
 
-/* 5. MESSAGE ITEMS & ANIMATION */
-.message-item {
-  margin-bottom: 32px;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
+.message-item { margin-bottom: 25px; display: flex; flex-direction: column; width: 100%; animation: slideIn 0.3s ease-out; }
 
-@keyframes slideInUp {
-  from { opacity: 0; transform: translateY(20px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
+@keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* 6. IDENTITY ALIGNMENT (LEFT/RIGHT) */
-/* Sent Messages (You) */
-.me {
-  align-items: flex-end;
-}
-.me .user-label { 
-  color: #8ab4f8; 
-  text-shadow: 0 0 10px rgba(138, 180, 248, 0.4);
-  margin-right: 8px;
-}
-.me .message-text {
-  background: rgba(138, 180, 248, 0.1); 
-  border: 1px solid rgba(138, 180, 248, 0.3);
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 4px 15px rgba(138, 180, 248, 0.1);
-}
+.me { align-items: flex-end; }
+.other { align-items: flex-start; }
 
-/* Received Messages (Others) */
-.other {
-  align-items: flex-start;
-}
-.other .user-label { 
-  color: #c4eed0; 
-  text-shadow: 0 0 10px rgba(196, 238, 208, 0.4);
-  margin-left: 8px;
-}
-.other .message-text {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom-left-radius: 4px;
-}
-
-/* 7. MESSAGE BUBBLES */
 .message-text {
-  line-height: 1.7;
-  font-size: 1.05rem;
+  line-height: 1.6;
   padding: 12px 18px;
   border-radius: 18px;
   backdrop-filter: blur(8px);
-  max-width: 75%;
-  word-wrap: break-word;
+  max-width: 70%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.user-label {
-  font-weight: 700;
-  font-size: 0.75rem;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-}
+.me .message-text { background: rgba(138, 180, 248, 0.1); border-color: rgba(138, 180, 248, 0.3); border-bottom-right-radius: 4px; }
+.other .message-text { border-bottom-left-radius: 4px; }
 
-/* 8. INPUT AREA (FUTURISTIC PILL) */
-.input-wrapper {
-  padding: 30px;
-  background: linear-gradient(to top, #0b0b0d 80%, transparent);
-}
+.user-label { font-weight: 700; font-size: 0.65rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8; }
+.me .user-label { color: #8ab4f8; }
+.other .user-label { color: #c4eed0; }
 
-.input-area {
-  background: rgba(30, 31, 32, 0.7);
-  backdrop-filter: blur(12px);
-  border-radius: 20px;
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+.status-container { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+.status-text { font-size: 0.55rem; letter-spacing: 1px; font-weight: 700; color: #5f6368; }
+.status-glyph { width: 5px; height: 5px; border-radius: 50%; border: 1px solid #8ab4f8; animation: pulse 2s infinite; }
+.status-glyph.synced { background: #8ab4f8; animation: none; box-shadow: 0 0 8px #8ab4f8; }
 
-.input-area:focus-within {
-  border-color: #8ab4f8;
-  box-shadow: 0 0 20px rgba(138, 180, 248, 0.15);
-  transform: translateY(-2px);
-}
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #fff;
-  padding: 14px;
-  font-size: 1.05rem;
-  outline: none;
-}
-
-button {
-  background: #fff;
-  color: #000;
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-button:hover {
-  transform: scale(1.1) rotate(-5deg);
-  background: #8ab4f8;
-}.status-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  opacity: 0.6;
-}
-
-.status-text {
-  font-size: 0.6rem;
-  letter-spacing: 2px;
-  font-weight: 700;
-}
-
-.status-glyph {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: 1px solid #8ab4f8;
-  animation: pulse 2s infinite;
-}
-
-.status-glyph.synced {
-  background: #8ab4f8;
-  box-shadow: 0 0 8px #8ab4f8;
-  animation: none;
-  border: none;
-}
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(138, 180, 248, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(138, 180, 248, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(138, 180, 248, 0); }
-}
+.input-wrapper { padding: 20px 30px; }
+.input-area { background: rgba(30, 31, 32, 0.7); border-radius: 20px; padding: 5px 15px; display: flex; align-items: center; border: 1px solid rgba(255,255,255,0.1); }
+input { flex: 1; background: transparent; border: none; color: #fff; padding: 12px; outline: none; }
+button { background: #fff; border: none; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; }

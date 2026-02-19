@@ -8,9 +8,9 @@
   </div>
 
   <div *ngIf="userName" style="display: contents;">
-    <div style="padding: 15px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.7rem; letter-spacing: 2px; color: #8ab4f8;">ACTIVE SESSION: {{ userName }}</span>
-      <span style="font-size: 0.7rem; color: #5f6368;">SECURE_CHANNEL_v2.0</span>
+    <div class="header">
+      <span style="color: #8ab4f8;">ACTIVE SESSION: {{ userName }}</span>
+      <span style="color: #5f6368; font-size: 0.6rem;">SECURE_CHANNEL_v2.0</span>
     </div>
 
     <div class="messages-list" #scrollMe>
@@ -20,9 +20,7 @@
         <div class="message-text">{{ msg.text }}</div>
         
         <div class="status-container" *ngIf="msg.user === userName">
-          <span class="status-text">
-            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
-          </span>
+          <span class="status-text">{{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}</span>
           <div class="status-glyph" [class.synced]="seenMessages.has(msg.id)"></div>
         </div>
       </div>
@@ -33,9 +31,6 @@
         <input [(ngModel)]="newMessage" placeholder="Message DuoText..." (keyup.enter)="send()">
         <button (click)="send()">▲</button>
       </div>
-      <p style="text-align: center; font-size: 0.65rem; color: #5f6368; margin-top: 15px; letter-spacing: 1px;">
-        ENCRYPTED TERMINAL // DUOTEXT v2.0
-      </p>
     </div>
   </div>
 </div>

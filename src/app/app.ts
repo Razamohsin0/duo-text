@@ -16,8 +16,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
   nameInput = '';
   newMessage = '';
   messages: any[] = [];
-  
-  // FIX: This solves the TS2551 error
   seenMessages: Set<string> = new Set(); 
   
   private pusher: any;
@@ -34,19 +32,17 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
     this.channel = this.pusher.subscribe('chat-room');
     
-    // 1. Listen for new messages
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
-        if (data.user !== this.userName) {
+        const exists = this.messages.find(m => m.id === data.id);
+        if (data.user !== this.userName && !exists) {
           this.messages.push(data);
-          // 2. Automatically tell the sender we saw it
-          this.markAsSeen(data.id);
+          this.markAsSeen(data.id); // Tell sender we saw it
         }
         this.cdr.detectChanges();
       });
     });
 
-    // 3. Listen for "Seen" receipts from others
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
         this.seenMessages.add(data.id);
@@ -55,9 +51,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  ngAfterViewChecked() {        
-    this.scrollToBottom();        
-  } 
+  ngAfterViewChecked() { this.scrollToBottom(); } 
 
   scrollToBottom(): void {
     try {
@@ -78,24 +72,23 @@ export class AppComponent implements OnInit, AfterViewChecked {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: messageId, viewer: this.userName })
-    }).catch(err => console.error("Seen error:", err));
+    });
   }
 
   async send() {
-    if (this.newMessage.trim()) {
-      const messageId = `msg-${Date.now()}`;
-      const msg = { id: messageId, user: this.userName, text: this.newMessage };
+    if (!this.newMessage.trim()) return;
+    const messageId = `msg-${this.userName}-${Date.now()}`;
+    const msg = { id: messageId, user: this.userName, text: this.newMessage };
 
-      // Optimistic update
-      this.messages.push(msg); 
-      this.newMessage = ''; 
-      this.cdr.detectChanges(); 
+    this.messages.push(msg); 
+    const currentText = this.newMessage;
+    this.newMessage = ''; 
+    this.cdr.detectChanges(); 
 
-      fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(msg)
-      });
-    }
+    await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: messageId, user: this.userName, text: currentText })
+    });
   }
 }

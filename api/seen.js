@@ -9,14 +9,12 @@ const pusher = new Pusher({
 });
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
-
   const { id, viewer } = req.body;
 
   try {
-    // This sends a "seen" signal back to the original sender
+    // We trigger 'message-seen' which the sender is listening for
     await pusher.trigger("chat-room", "message-seen", { id, viewer });
-    return res.status(200).json({ status: "ok" });
+    return res.status(200).json({ status: "success" });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
