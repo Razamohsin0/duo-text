@@ -1,4 +1,4 @@
-import { Component, OnInit, NgZone } from '@angular/core'; // Added NgZone
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core'; // 1. Use ChangeDetectorRef
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Pusher from 'pusher-js';
@@ -17,8 +17,8 @@ export class AppComponent implements OnInit {
   private pusher: any;
   private channel: any;
 
-  // We inject NgZone here to force the UI to update
-  constructor(private ngZone: NgZone) {}
+  // 2. Inject ChangeDetectorRef
+  constructor(private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
@@ -30,18 +30,21 @@ export class AppComponent implements OnInit {
     this.channel = this.pusher.subscribe('chat-room');
     
     this.channel.bind('new-message', (data: any) => {
-      // We wrap this in ngZone.run so the message appears 
-      // the MOMENT it arrives, without needing a click.
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.messages.push(data);
-        }
-      });
+      if (data.user !== this.userName) {
+        this.messages.push(data);
+        
+        // 3. MANUALLY FORCE REFRESH
+        // This makes the message appear WITHOUT needing to type or click
+        this.cdr.detectChanges(); 
+      }
     });
   }
 
   setUserName() {
-    if (this.nameInput.trim()) this.userName = this.nameInput;
+    if (this.nameInput.trim()) {
+      this.userName = this.nameInput;
+      this.cdr.detectChanges();
+    }
   }
 
   send() {
@@ -49,12 +52,15 @@ export class AppComponent implements OnInit {
       const msg = { user: this.userName, text: this.newMessage };
       this.messages.push(msg); 
       this.newMessage = ''; 
+      
+      // Force refresh for the sender's optimistic update
+      this.cdr.detectChanges(); 
 
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(msg)
-      }).catch(err => console.error("Failed to send:", err));
+      });
     }
   }
 }
