@@ -35,13 +35,13 @@
       </div>
     </div>
 
-    <div *ngIf="sessionTerminated" class="termination-overlay">
-      <div class="terminal-box">
-        <h1 class="glitch-text">ACCESS DENIED</h1>
-        <p>DUPLICATE LOGIN DETECTED</p>
-        <div class="status-line">NODE_IDENT: {{ userName | uppercase }} // STATUS: TERMINATED</div>
-        <button class="reconnect-btn" onclick="window.location.reload()">RE-ESTABLISH CONNECTION</button>
-      </div>
-    </div>
+<div *ngIf="sessionTerminated" class="termination-overlay">
+  <div class="terminal-box">
+    <h1 class="glitch-text">NEW LOGIN DETECTED</h1>
+    <p>DUPLICATE SESSION INITIATED</p>
+    <div class="status-line">NODE_IDENT: {{ userName | uppercase }} // STATUS: TERMINATED</div>
+    <button class="reconnect-btn" onclick="window.location.reload()">LOGIN BACK</button>
+  </div>
+</div>
   </ng-container>
 </div>

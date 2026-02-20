@@ -207,10 +207,19 @@ button {
 }
 
 .glitch-text {
-  color: #ff4d4d; /* Red for danger */
-  letter-spacing: 5px;
-  font-size: 1.5rem;
+  color: #ff4d4d;
+  letter-spacing: 3px; /* Slightly tighter for longer text */
+  font-size: 1.4rem;    /* Optimized for the new phrase */
+  font-weight: 700;
   margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.terminal-box p {
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  opacity: 0.8;
+  margin-bottom: 20px;
 }
 
 .status-line {
@@ -224,16 +233,20 @@ button {
   background: transparent;
   border: 1px solid var(--accent-color);
   color: var(--accent-color);
-  padding: 10px 20px;
+  padding: 12px 24px;
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 2px; /* Increased for a cleaner terminal look */
   transition: all 0.3s ease;
+  margin-top: 10px;
 }
 
 .reconnect-btn:hover {
   background: var(--accent-color);
-  color: #000;
+  color: #0b0f14;
+  box-shadow: 0 0 15px var(--accent-color);
 }
 /* Class to be applied via [class.status-text-synced] in HTML */
 .status-text-synced {
