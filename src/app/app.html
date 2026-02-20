@@ -40,9 +40,11 @@
   </div>
 </div>
 
-   <div class="typing-indicator" *ngIf="isPartnerTyping">
+ <div class="typing-indicator" *ngIf="isPartnerTyping" style="margin-top: 10px;">
   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-  [SIGNAL INTERCEPTED]: {{ targetUser === 'public_group' ? 'ANONYMOUS' : (targetUser | uppercase) }} IS GENERATING RESPONSE...
+  <span style="letter-spacing: 1px; font-weight: bold;">
+    [SYSTEM]: {{ targetUser | uppercase }} IS ANALYZING INPUT / GENERATING RESPONSE...
+  </span>
 </div>
 
     <div class="input-wrapper">

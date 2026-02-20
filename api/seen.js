@@ -6,16 +6,13 @@ const pusher = new Pusher({
 
 export default async function handler(req, res) {
   const { id, viewer, target } = req.body;
-  
   const isElite = (viewer === 'user1' && target === 'user2') || (viewer === 'user2' && target === 'user1');
-  // Change this line in your backend files
-const roomID = `private-${isElite ? 'vault-user1-user2' : 'public-plaza'}`;
+  const roomID = `private-${isElite ? 'vault-user1-user2' : 'public-plaza'}`;
 
   try {
     await pusher.trigger(roomID, 'message-seen', { id });
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Seen API Error:", error);
     return res.status(500).json({ error: error.message });
   }
 }
