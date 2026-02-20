@@ -48,14 +48,14 @@ body, html {
   color: var(--accent-color);
 }
 
-/* --- Header Section (Refined Grid) --- */
+/* --- Header Section (3-Column Grid) --- */
 .header {
   padding: 14px 20px;
   background: rgba(11, 15, 20, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(61, 242, 224, 0.15); 
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr; /* Exact centering for the middle column */
+  grid-template-columns: 1fr 2fr 1fr; 
   align-items: center;
   z-index: 10;
 }
@@ -66,13 +66,12 @@ body, html {
   letter-spacing: 1px;
   font-weight: 400;
   text-transform: uppercase;
-  opacity: 0.5; /* Dimmed to prioritize partner status */
+  opacity: 0.5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* NEW: Header Center Notification Styles */
 .header-center-status {
   display: flex;
   align-items: center;
@@ -190,7 +189,29 @@ body, html {
   border-bottom-left-radius: 4px;
 }
 
-/* --- AI-TWIST TYPING INDICATOR --- */
+/* --- REVERTED STATUS TEXT (FIXED SIZE) --- */
+.status-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.status-text { 
+  font-size: 0.55rem; 
+  color: #4a5568; 
+  font-weight: 700; 
+  letter-spacing: 0.5px; 
+  text-transform: uppercase;
+  font-family: monospace;
+}
+
+.status-text-synced {
+  color: var(--accent-color) !important;
+  text-shadow: 0 0 5px rgba(61, 242, 224, 0.5);
+}
+
+/* --- Typing Indicator --- */
 .typing-indicator-wrapper {
   align-self: flex-start;
   margin: 10px 0;
@@ -206,7 +227,6 @@ body, html {
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 0 15px rgba(61, 242, 224, 0.05);
 }
 
 .ai-typing-text {
@@ -215,7 +235,6 @@ body, html {
   color: var(--accent-color);
   letter-spacing: 1px;
   text-transform: uppercase;
-  font-weight: 600;
 }
 
 .typing-dots {
@@ -228,7 +247,6 @@ body, html {
   height: 5px;
   background-color: var(--accent-color);
   border-radius: 50%;
-  box-shadow: 0 0 5px var(--accent-color);
   animation: aiPulse 1.4s infinite ease-in-out both;
 }
 
@@ -254,7 +272,6 @@ body, html {
   padding: 4px 6px 4px 15px;
   border: 1px solid rgba(61, 242, 224, 0.2);
   align-items: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
   transition: border-color 0.3s ease;
 }
 
@@ -272,10 +289,6 @@ input {
   outline: none;
 }
 
-input::placeholder {
-  color: #4a5568;
-}
-
 button {
   background: var(--accent-color);
   border: none;
@@ -283,13 +296,10 @@ button {
   width: 36px;
   height: 36px;
   color: #0b0f14;
-  font-weight: 900;
   cursor: pointer;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 12px rgba(61, 242, 224, 0.4);
 }
 
 /* --- Overlays & Animations --- */
@@ -312,34 +322,9 @@ button {
   border: 1px solid var(--accent-color);
   padding: 40px;
   background: rgba(61, 242, 224, 0.05);
-  box-shadow: 0 0 50px rgba(61, 242, 224, 0.1);
-  border-radius: 4px;
 }
 
-.glitch-text {
-  color: var(--error-red);
-  letter-spacing: 3px;
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-  text-transform: uppercase;
-}
-
-.reconnect-btn {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--accent-color);
-  color: var(--accent-color);
-  padding: 5px 0;
-  cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  transition: all 0.3s ease;
-  margin-top: 20px;
-  display: inline-block;
-}
+.glitch-text { color: var(--error-red); text-transform: uppercase; }
 
 @keyframes aiPulse {
   0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
@@ -357,13 +342,7 @@ button {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Responsive Hacks --- */
 @media (max-width: 480px) {
-  .header { 
-    padding: 12px 10px; 
-    grid-template-columns: 60px 1fr 60px; /* Constrain sides on mobile */
-  }
-  .user-id-header { font-size: 0.45rem; opacity: 0.4; }
-  .header-center-status { font-size: 0.45rem; gap: 4px; }
-  .dev-link { font-size: 0.45rem; }
+  .header { grid-template-columns: 60px 1fr 60px; padding: 12px 10px; }
+  .user-id-header, .header-center-status, .dev-link { font-size: 0.45rem; }
 }
