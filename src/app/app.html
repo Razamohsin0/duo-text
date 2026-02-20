@@ -19,21 +19,26 @@
       </a>
     </div>
 
-    <div class="messages-list" #scrollMe>
-      <div *ngFor="let msg of messages; let i = index; let isLast = last" 
-           [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
-        
-        <span class="user-label">{{ msg.user }}</span>
-        <div class="message-text">{{ msg.text }}</div>
-        
-        <div class="status-container" *ngIf="msg.user === userName && isLast">
-          <span class="timestamp-text" *ngIf="msg.timestamp">{{ msg.timestamp | date:'HH:mm' }}</span>
-          <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
-            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
-          </span>
-        </div> 
-      </div>
+   <div class="messages-list" #scrollMe>
+  <div *ngFor="let msg of messages; let i = index; let isLast = last" 
+       [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
+    
+    <div class="message-header">
+      <span class="user-label">{{ msg.user }}</span>
+      <span class="timestamp-header" *ngIf="msg.timestamp">
+        {{ msg.timestamp | date:'h:mm a' }}
+      </span>
     </div>
+
+    <div class="message-text">{{ msg.text }}</div>
+    
+    <div class="status-container" *ngIf="msg.user === userName && isLast">
+      <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
+        {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+      </span>
+    </div> 
+  </div>
+</div>
 
     <div class="typing-indicator" *ngIf="isPartnerTyping">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>
