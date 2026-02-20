@@ -5,14 +5,19 @@ const pusher = new Pusher({
 });
 
 export default async function handler(req, res) {
-  const { userName, sessionId, target } = req.body;
-  const roomID = `room-${[userName, target].sort().join('-')}`;
+  // Destructure variables here
+  const { userName, sessionId, roomID } = req.body;
 
   try {
-    // Shouting to the room: "If you are 'userName' and don't have this 'sessionId', GET OUT!"
-    await pusher.trigger(roomID, "terminate-session", { userName, sessionId });
-    return res.status(200).json({ status: "Terminator Active" });
+    // Use the destructured variables directly
+    await pusher.trigger(`room-${roomID}`, "terminate-session", { 
+      userName, 
+      sessionId 
+    });
+    
+    return res.status(200).json({ status: "Signal Dispatched" });
   } catch (error) {
+    console.error("Pusher Trigger Error:", error);
     return res.status(500).json({ error: error.message });
   }
 }

@@ -8,6 +8,11 @@
   </div>
 
   <ng-container *ngIf="userName">
+    
+    <div *ngIf="connectionStatus" class="status-toast">
+      <span class="pulse-dot">●</span> {{ connectionStatus }}
+    </div>
+
     <div class="header">
       <span class="user-id-header">{{ userName }} // ACTIVE</span>
       <a href="https://nexifitech.com" target="_blank" class="dev-link">
@@ -35,13 +40,14 @@
       </div>
     </div>
 
-<div *ngIf="sessionTerminated" class="termination-overlay">
-  <div class="terminal-box">
-    <h1 class="glitch-text">NEW LOGIN DETECTED</h1>
-    <p>DUPLICATE SESSION INITIATED</p>
-    <div class="status-line">User: {{ userName | uppercase }} // STATUS: TERMINATED</div>
-    <button class="reconnect-btn" onclick="window.location.reload()">LOGIN BACK IN</button>
-  </div>
-</div>
+    <div *ngIf="sessionTerminated" class="termination-overlay">
+      <div class="terminal-box">
+        <h1 class="glitch-text">NEW LOGIN DETECTED</h1>
+        <p>DUPLICATE SESSION INITIATED</p>
+        <div class="status-line">User: {{ userName | uppercase }} // STATUS: TERMINATED</div>
+        <button class="reconnect-btn" onclick="window.location.reload()">LOG BACK IN</button>
+      </div>
+    </div>
+
   </ng-container>
 </div>

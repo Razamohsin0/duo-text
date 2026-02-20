@@ -250,6 +250,43 @@ button {
   border-bottom: 1px solid #ffffff;
   text-shadow: 0 0 8px var(--accent-color);
 }
+.status-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(61, 242, 224, 0.1);
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  padding: 10px 20px;
+  font-family: monospace;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  animation: slideDown 0.4s ease forwards, fadeOut 0.5s ease 3.5s forwards;
+}
+
+.pulse-dot {
+  animation: simplePulse 1.5s infinite;
+  margin-right: 8px;
+}
+
+@keyframes slideDown {
+  from { transform: translate(-50%, -40px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes simplePulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
 /* Class to be applied via [class.status-text-synced] in HTML */
 .status-text-synced {
   color: var(--accent-color) !important;

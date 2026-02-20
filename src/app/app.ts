@@ -12,17 +12,18 @@ import Pusher from 'pusher-js';
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
-  // Identity State
+  // Identity & Status
   userName = '';
   targetUser = ''; 
   nameInput = '';
+  connectionStatus: string | null = null;
   
-  // Messaging State
+  // Messaging
   newMessage = '';
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
   
-  // Security State
+  // Security
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
   
@@ -38,41 +39,47 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  /**
-   * IDENTITY PROTOCOL
-   * Handles the split logic between the Private Vault and Public Plaza
-   */
   setUserName() {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
       this.userName = input;
       
       let roomID = '';
+      let mode = '';
 
       // ELITE PAIR LOCK: user1 and user2 share a permanent private vault
       if (this.userName === 'user1' || this.userName === 'user2') {
         this.targetUser = (this.userName === 'user1') ? 'user2' : 'user1';
         roomID = 'vault-user1-user2';
+        mode = 'SECURE VAULT';
       } 
-      // PUBLIC PLAZA: Everyone else talks together in a shared frequency
+      // PUBLIC PLAZA: Everyone else talks together
       else {
         this.targetUser = 'public_group';
         roomID = 'public-plaza';
+        mode = 'PUBLIC PLAZA';
       }
 
-      // Subscribe to the specific room
       this.channel = this.pusher.subscribe(`room-${roomID}`);
       
+      // TRIGGER CONNECTION TOAST
+      this.connectionStatus = `UPLINK ESTABLISHED // MODE: ${mode}`;
+      setTimeout(() => { 
+        this.connectionStatus = null; 
+        this.cdr.detectChanges(); 
+      }, 4000);
+
       this.setupBindings();
       this.loadHistory();
-      this.terminateOtherSessions();
+      
+      // Pass the specific roomID to ensure the kill-switch hits the right channel
+      this.terminateOtherSessions(roomID);
 
       this.cdr.detectChanges();
     }
   }
 
   setupBindings() {
-    // New Message Receiver
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
@@ -83,7 +90,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // Seen Status Receiver
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
         this.seenMessages.add(data.id);
@@ -91,11 +97,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // Security Kill-Switch
     this.channel.bind('terminate-session', (data: any) => {
       this.ngZone.run(() => {
         if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
-          console.warn("Security Breach: Duplicate login.");
           this.sessionTerminated = true;
           this.cdr.detectChanges();
         }
@@ -103,10 +107,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  /**
-   * DATA UPLINK
-   * Loads history based on current room membership
-   */
   async loadHistory() {
     try {
       const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
@@ -114,7 +114,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       this.ngZone.run(() => {
         this.messages = data;
         this.cdr.detectChanges();
-        
         if (this.messages.length > 0) {
           const lastMsg = this.messages[this.messages.length - 1];
           if (lastMsg.user !== this.userName) {
@@ -128,9 +127,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  /**
-   * MESSAGE TRANSMISSION
-   */
   async send() {
     if (!this.newMessage.trim()) return;
     
@@ -142,7 +138,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       text: this.newMessage 
     };
 
-    // Optimistic UI Update
     this.messages.push(msg);
     const textToSend = this.newMessage;
     this.newMessage = '';
@@ -155,9 +150,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  /**
-   * VISIBILITY TRACKING
-   */
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
@@ -187,19 +179,18 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  async terminateOtherSessions() {
+  async terminateOtherSessions(roomID: string) {
     await fetch('/api/terminate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         userName: this.userName, 
         sessionId: this.currentSessionId,
-        target: this.targetUser 
+        roomID: roomID 
       })
     });
   }
 
-  // Scroll Management
   ngAfterViewChecked() { this.scrollToBottom(); }
 
   scrollToBottom(): void {
