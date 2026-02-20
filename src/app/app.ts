@@ -12,19 +12,22 @@ import Pusher from 'pusher-js';
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
+  // Identity & Status
   userName = '';
   targetUser = ''; 
   nameInput = '';
   connectionStatus: string | null = null;
   
+  // Messaging
   newMessage = '';
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
   
-  // New States
+  // States
   isPartnerTyping = false;
   typingTimeout: any;
   
+  // Security
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
   
@@ -34,10 +37,14 @@ export class AppComponent implements OnInit, AfterViewChecked {
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit() {
-    // Enable client events in your Pusher Dashboard to make 'client-typing' work
+    /** * NOTE: To use 'client-typing', you MUST:
+     * 1. Enable "Client Events" in Pusher Dashboard (App Settings).
+     * 2. Use a 'private-' channel prefix.
+     */
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
       cluster: 'ap2',
-      forceTLS: true
+      forceTLS: true,
+      authEndpoint: '/api/pusher/auth' // Ensure this backend file exists
     });
   }
 
@@ -49,29 +56,37 @@ export class AppComponent implements OnInit, AfterViewChecked {
       let roomID = '';
       let mode = '';
 
+      // ELITE PAIR LOCK
       if (this.userName === 'user1' || this.userName === 'user2') {
         this.targetUser = (this.userName === 'user1') ? 'user2' : 'user1';
-        roomID = 'vault-user1-user2';
+        roomID = 'private-vault-user1-user2'; // Using private- for client events
         mode = 'SECURE VAULT';
-      } else {
+      } 
+      // PUBLIC PLAZA
+      else {
         this.targetUser = 'public_group';
-        roomID = 'public-plaza';
+        roomID = 'private-public-plaza';
         mode = 'PUBLIC PLAZA';
       }
 
-      this.channel = this.pusher.subscribe(`room-${roomID}`);
+      this.channel = this.pusher.subscribe(roomID);
       
       this.connectionStatus = `UPLINK ESTABLISHED // MODE: ${mode}`;
-      setTimeout(() => { this.connectionStatus = null; this.cdr.detectChanges(); }, 4000);
+      setTimeout(() => { 
+        this.connectionStatus = null; 
+        this.cdr.detectChanges(); 
+      }, 4000);
 
       this.setupBindings();
       this.loadHistory();
-      this.terminateOtherSessions(roomID);
+      this.terminateOtherSessions(roomID.replace('private-', '')); // API expects the ID part
+
       this.cdr.detectChanges();
     }
   }
 
   setupBindings() {
+    // 1. Listen for new messages
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
@@ -82,6 +97,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // 2. Listen for 'seen' status
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
         this.seenMessages.add(data.id);
@@ -89,7 +105,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // TYPING BINDING
+    // 3. AI-Style Typing Binding
     this.channel.bind('client-typing', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -99,6 +115,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // 4. Session Termination (Kill-switch)
     this.channel.bind('terminate-session', (data: any) => {
       this.ngZone.run(() => {
         if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
@@ -110,8 +127,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   onTyping() {
+    // Client trigger (whisper) sends signal to other tab
     this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
+    
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
+    
     this.typingTimeout = setTimeout(() => {
       this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
     }, 2000);
@@ -130,7 +150,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
         }
         setTimeout(() => this.scrollToBottom(), 100);
       });
-    } catch (e) { console.error("History Error", e); }
+    } catch (e) { 
+      console.error("Historical Uplink Failed", e); 
+    }
   }
 
   async send() {
@@ -142,13 +164,16 @@ export class AppComponent implements OnInit, AfterViewChecked {
       user: this.userName, 
       target: this.targetUser, 
       text: this.newMessage,
-      timestamp: Date.now() // Added timestamp locally
+      timestamp: Date.now()
     };
 
     this.messages.push(msg);
     const textToSend = this.newMessage;
     this.newMessage = '';
+    
+    // Immediately clear typing indicator locally when message is sent
     this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
+    
     this.cdr.detectChanges();
 
     await fetch('/api/chat', {
@@ -168,6 +193,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
           }
         });
       }, { threshold: 0.8 });
+
       const elements = document.querySelectorAll('.message-item.other');
       const lastElement = elements[elements.length - 1];
       if (lastElement) observer.observe(lastElement);
@@ -178,7 +204,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
     fetch('/api/seen', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser })
+      body: JSON.stringify({ 
+        id: messageId, 
+        viewer: this.userName, 
+        target: this.targetUser 
+      })
     });
   }
 
@@ -186,11 +216,18 @@ export class AppComponent implements OnInit, AfterViewChecked {
     await fetch('/api/terminate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID: roomID })
+      body: JSON.stringify({ 
+        userName: this.userName, 
+        sessionId: this.currentSessionId,
+        roomID: roomID 
+      })
     });
   }
 
-  ngAfterViewChecked() { this.scrollToBottom(); }
+  ngAfterViewChecked() { 
+    this.scrollToBottom(); 
+  }
+
   scrollToBottom(): void {
     try {
       this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight;

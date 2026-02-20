@@ -15,7 +15,8 @@ export default async function handler(req, res) {
   
   const isElite = (user === 'user1' && target === 'user2') || (user === 'user2' && target === 'user1');
   const vaultKey = isElite ? 'chat:vault-user1-user2' : null;
-  const roomID = `room-${isElite ? 'vault-user1-user2' : 'public-plaza'}`;
+ // Change this line in your backend files
+const roomID = `private-${isElite ? 'vault-user1-user2' : 'public-plaza'}`;
 
   try {
     const msg = { id, user, text, timestamp: Date.now() };

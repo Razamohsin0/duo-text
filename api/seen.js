@@ -8,7 +8,8 @@ export default async function handler(req, res) {
   const { id, viewer, target } = req.body;
   
   const isElite = (viewer === 'user1' && target === 'user2') || (viewer === 'user2' && target === 'user1');
-  const roomID = `room-${isElite ? 'vault-user1-user2' : 'public-plaza'}`;
+  // Change this line in your backend files
+const roomID = `private-${isElite ? 'vault-user1-user2' : 'public-plaza'}`;
 
   try {
     await pusher.trigger(roomID, 'message-seen', { id });
