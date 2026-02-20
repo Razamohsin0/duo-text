@@ -123,9 +123,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // --- HANDSHAKE PROTOCOL ---
+    // --- HANDSHAKE & PRESENCE PROTOCOL ---
 
-    // 5. Phase A: User A hears User B join via Backend
+    // 5. User A hears User B join via Backend
     this.channel.bind('user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -142,7 +142,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 6. Phase B: User B receives Ping from User A
+    // 6. User B receives Ping from User A
     this.channel.bind('client-presence-ping', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -156,7 +156,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 7. Phase C: User A receives ACK
+    // 7. User A receives ACK (Final Sync)
     this.channel.bind('client-presence-ack', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -165,6 +165,24 @@ export class AppComponent implements OnInit, AfterViewChecked {
           this.cdr.detectChanges();
         }
       });
+    });
+
+    // 8. Listen for Partner Disconnect (Manual Trigger)
+    this.channel.bind('client-user-left', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.partnerOnline = false;
+          this.partnerStatusText = `${data.user.toUpperCase()} DISCONNECTED`;
+          this.cdr.detectChanges();
+        }
+      });
+    });
+
+    // 9. Tab Closure Detection
+    window.addEventListener('beforeunload', () => {
+      if (this.channel) {
+        this.channel.trigger('client-user-left', { user: this.userName });
+      }
     });
   }
 
