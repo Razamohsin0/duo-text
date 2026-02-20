@@ -1,19 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
 
 :root {
-  --bg-color: #0b0b0d;
-  --accent-color: #8ab4f8;
-  --input-bg: #1e1f20;
+  --bg-color: #0b0f14;      /* Void Black */
+  --accent-color: #3df2e0;  /* Neon Cyan */
+  --input-bg: #161c24;      
+  --text-main: #e3e3e3;
 }
 
 body, html {
   background: var(--bg-color);
-  color: #e3e3e3;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text-main);
+  font-family: "Montserrat", sans-serif;
   margin: 0;
   height: 100%;
   width: 100%;
-  overflow: hidden; /* Prevents the whole page from bouncing */
+  overflow: hidden; 
   overscroll-behavior: none;
 }
 
@@ -21,35 +22,62 @@ body, html {
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Fills screen exactly */
-  height: -webkit-fill-available; /* Fix for mobile browser address bars */
-  max-width: 600px; /* Looks better on desktop too */
+  height: 100vh;
+  height: -webkit-fill-available;
+  max-width: 600px;
   margin: 0 auto;
   position: relative;
 }
 
 /* Header */
 .header {
-  padding: 12px 20px;
-  background: rgba(11, 11, 13, 0.9);
+  padding: 14px 20px;
+  background: rgba(11, 15, 20, 0.95);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(61, 242, 224, 0.15); 
   display: flex;
   justify-content: space-between;
-  font-size: 0.65rem;
-  letter-spacing: 1px;
+  align-items: center;
   z-index: 10;
 }
 
-/* Messages List - This is the only part that scrolls */
+/* User Identity - Reverted to Standard White/Grey */
+.user-id-header {
+  color: #e3e3e3; 
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+/* Dev Link - Neon Cyan Signature */
+.dev-link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-size: 0.65rem;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(61, 242, 224, 0.4);
+}
+
+.dev-link:hover {
+  color: #ffffff;
+  text-shadow: 0 0 15px var(--accent-color);
+}
+
+/* Messages List */
 .messages-list {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
-  padding-bottom: 100px; /* Space for the sticky input */
+  padding-bottom: 110px;
   display: flex;
   flex-direction: column;
-  -webkit-overflow-scrolling: touch; /* Smooth scroll for iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 .message-item {
@@ -62,18 +90,32 @@ body, html {
 .me { align-self: flex-end; align-items: flex-end; }
 .other { align-self: flex-start; align-items: flex-start; }
 
+.user-label {
+  font-size: 0.6rem;
+  margin-bottom: 4px;
+  opacity: 0.8;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent-color);
+}
+
 .message-text {
   padding: 10px 14px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   font-size: 0.95rem;
   word-wrap: break-word;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .me .message-text {
-  background: rgba(138, 180, 248, 0.15);
-  border: 1px solid rgba(138, 180, 248, 0.3);
+  background: rgba(61, 242, 224, 0.08);
+  border: 1px solid rgba(61, 242, 224, 0.3);
   border-bottom-right-radius: 4px;
+}
+
+.other .message-text {
+  border-bottom-left-radius: 4px;
 }
 
 /* Sticky Input Wrapper */
@@ -83,7 +125,8 @@ body, html {
   left: 0;
   right: 0;
   padding: 15px;
-  background: linear-gradient(transparent, var(--bg-color) 20%);
+  padding-bottom: max(15px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, var(--bg-color) 40%);
   z-index: 20;
 }
 
@@ -92,20 +135,23 @@ body, html {
   border-radius: 24px;
   display: flex;
   padding: 4px 6px 4px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(61, 242, 224, 0.2);
   align-items: center;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
 }
 
-/* Crucial: Font size 16px stops iOS zoom */
 input {
   flex: 1;
   background: transparent;
   border: none;
   color: white;
   padding: 10px 0;
-  font-size: 16px; 
+  font-size: 16px;
   outline: none;
+}
+
+input::placeholder {
+  color: #4a5568;
 }
 
 button {
@@ -114,10 +160,14 @@ button {
   border-radius: 50%;
   width: 36px;
   height: 36px;
-  color: #000;
-  font-weight: bold;
+  color: #0b0f14;
+  font-weight: 900;
   cursor: pointer;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(61, 242, 224, 0.4);
 }
 
 /* Status text tweaks */
@@ -127,10 +177,21 @@ button {
   gap: 4px;
   margin-top: 4px;
 }
-.status-text { font-size: 0.55rem; color: #5f6368; }
+.status-text { 
+  font-size: 0.55rem; 
+  color: #4a5568; 
+  font-weight: 700; 
+  letter-spacing: 0.5px; 
+}
 
-/* Responsive adjustments */
+/* Class to be applied via [class.status-text-synced] in HTML */
+.status-text-synced {
+  color: var(--accent-color) !important;
+  text-shadow: 0 0 5px rgba(61, 242, 224, 0.5);
+}
+
 @media (max-width: 480px) {
-  .message-text { font-size: 0.9rem; }
-  .header { padding: 10px 15px; }
+  .message-text { font-size: 0.95rem; }
+  .header { padding: 12px 15px; }
+  .dev-link { font-size: 0.55rem; }
 }

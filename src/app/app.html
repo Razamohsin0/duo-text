@@ -1,6 +1,6 @@
 <div class="chat-container">
   <div *ngIf="!userName" class="login-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px;">
-    <h2 style="letter-spacing: 5px; font-weight: 300; font-size: 1rem; margin-bottom: 20px;">INITIATE PROTOCOL</h2>
+    <h2 style="letter-spacing: 5px; font-weight: 300; font-size: 1rem; margin-bottom: 20px; color:#3df2e0;">INITIATE PROTOCOL</h2>
     <div class="input-area" style="width: 100%; max-width: 300px;">
       <input [(ngModel)]="nameInput" placeholder="Identity..." (keyup.enter)="setUserName()" autocomplete="off">
       <button (click)="setUserName()">➔</button>
@@ -8,18 +8,20 @@
   </div>
 
   <ng-container *ngIf="userName">
-    <div class="header">
-      <span>{{ userName }} // ACTIVE</span>
-      <span>SECURE_NODE</span>
-    </div>
+ <div class="header">
+  <span class="user-id-header">{{ userName }} // ACTIVE</span>
+  <a href="https://nexifitech.com" target="_blank" class="dev-link">Developed by Nexifitech</a>
+</div>
 
     <div class="messages-list" #scrollMe>
       <div *ngFor="let msg of messages" [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
-        <span class="user-label" style="font-size: 0.6rem; margin-bottom: 4px; opacity: 0.5;">{{ msg.user }}</span>
+        <span class="user-label">{{ msg.user }}</span>
         <div class="message-text">{{ msg.text }}</div>
         
         <div class="status-container" *ngIf="msg.user === userName">
-          <span class="status-text">{{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}</span>
+          <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
+  {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+</span>
         </div>
       </div>
     </div>
