@@ -12,18 +12,15 @@ import Pusher from 'pusher-js';
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
-  // Identity & Status
   userName = '';
   targetUser = ''; 
   nameInput = '';
   connectionStatus: string | null = null;
   
-  // Messaging
   newMessage = '';
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
   
-  // Security
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
   
@@ -47,22 +44,22 @@ export class AppComponent implements OnInit, AfterViewChecked {
       let roomID = '';
       let mode = '';
 
-      // ELITE PAIR LOCK: user1 and user2 share a permanent private vault
+      // ELITE PAIR LOCK
       if (this.userName === 'user1' || this.userName === 'user2') {
         this.targetUser = (this.userName === 'user1') ? 'user2' : 'user1';
         roomID = 'vault-user1-user2';
         mode = 'SECURE VAULT';
       } 
-      // PUBLIC PLAZA: Everyone else talks together
+      // PUBLIC PLAZA
       else {
         this.targetUser = 'public_group';
         roomID = 'public-plaza';
         mode = 'PUBLIC PLAZA';
       }
 
+      // Explicitly subscribe to the same channel name the API uses
       this.channel = this.pusher.subscribe(`room-${roomID}`);
       
-      // TRIGGER CONNECTION TOAST
       this.connectionStatus = `UPLINK ESTABLISHED // MODE: ${mode}`;
       setTimeout(() => { 
         this.connectionStatus = null; 
@@ -71,8 +68,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
       this.setupBindings();
       this.loadHistory();
-      
-      // Pass the specific roomID to ensure the kill-switch hits the right channel
       this.terminateOtherSessions(roomID);
 
       this.cdr.detectChanges();
@@ -108,6 +103,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   async loadHistory() {
+    // History is only fetched for user1/user2 via the API's internal logic
     try {
       const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
       const data = await res.json();
@@ -116,15 +112,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
         this.cdr.detectChanges();
         if (this.messages.length > 0) {
           const lastMsg = this.messages[this.messages.length - 1];
-          if (lastMsg.user !== this.userName) {
-            this.markAsSeen(lastMsg.id);
-          }
+          if (lastMsg.user !== this.userName) this.markAsSeen(lastMsg.id);
         }
         setTimeout(() => this.scrollToBottom(), 100);
       });
-    } catch (e) {
-      console.error("Historical Uplink Failed", e);
-    }
+    } catch (e) { console.error("History Error", e); }
   }
 
   async send() {
@@ -143,6 +135,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
     this.newMessage = '';
     this.cdr.detectChanges();
 
+    // The API handles whether to save to Redis or just broadcast
     await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -192,7 +185,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   ngAfterViewChecked() { this.scrollToBottom(); }
-
   scrollToBottom(): void {
     try {
       this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight;
