@@ -19,50 +19,49 @@ export class AppComponent implements OnInit, AfterViewChecked {
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
   
+  // SESSION KILL-SWITCH: Unique ID for this specific tab
+  currentSessionId = Math.random().toString(36).substring(7);
+  
   private pusher: any;
   private channel: any;
 
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit() {
-    // Initialize Pusher Client
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
       cluster: 'ap2',
       forceTLS: true
     });
   }
 
-  /**
-   * INITIATE PROTOCOL
-   * Sets the identity and creates a private vault key
-   */
   setUserName() {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
       
-      // PRIVACY LOCK: Only user1 and user2 share a vault.
-      // If someone enters another name, they get their own isolated empty vault.
       this.userName = input;
+      // Define the partner for the private vault
       if (this.userName === 'user1') {
         this.targetUser = 'user2';
       } else if (this.userName === 'user2') {
         this.targetUser = 'user1';
       } else {
-        this.targetUser = 'system'; // Isolated chat for others
+        this.targetUser = 'system'; 
       }
 
-      // Join a unique private room based on both names (alphabetical order)
       const roomID = [this.userName, this.targetUser].sort().join('-');
       this.channel = this.pusher.subscribe(`room-${roomID}`);
       
       this.setupBindings();
       this.loadHistory();
+
+      // TRIGGER TERMINATOR: Inform other sessions to close
+      this.terminateOtherSessions();
+
       this.cdr.detectChanges();
     }
   }
 
   setupBindings() {
-    // Listen for new messages in the private vault
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         const exists = this.messages.find(m => m.id === data.id);
@@ -74,19 +73,38 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // Listen for 'Seen' receipts
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
         this.seenMessages.add(data.id);
         this.cdr.detectChanges();
       });
     });
+
+    // KILL-SWITCH LISTENER
+    this.channel.bind('terminate-session', (data: any) => {
+      this.ngZone.run(() => {
+        // If the broadcasted username matches mine but the session ID is different
+        if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
+          console.warn("New session detected. Terminating this instance.");
+          alert("PROTOCOL BREACH: You have logged in from another device. Closing this session.");
+          window.location.reload(); 
+        }
+      });
+    });
   }
 
-  /**
-   * UPLINK HISTORY
-   * Pulls messages only belonging to this specific user pair
-   */
+  async terminateOtherSessions() {
+    await fetch('/api/terminate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        userName: this.userName, 
+        sessionId: this.currentSessionId,
+        target: this.targetUser 
+      })
+    });
+  }
+
   async loadHistory() {
     try {
       const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
@@ -95,25 +113,17 @@ export class AppComponent implements OnInit, AfterViewChecked {
         this.messages = data;
         this.cdr.detectChanges();
         
-        // Mark the last incoming message as seen upon loading
         if (this.messages.length > 0) {
           const lastMsg = this.messages[this.messages.length - 1];
           if (lastMsg.user !== this.userName) {
             this.markAsSeen(lastMsg.id);
           }
         }
-        
         setTimeout(() => this.scrollToBottom(), 100);
       });
-    } catch (e) {
-      console.error("Historical Uplink Failed", e);
-    }
+    } catch (e) { console.error("History Load Failed", e); }
   }
 
-  /**
-   * PRECISION SYNC
-   * Uses IntersectionObserver to detect when the user actually sees a message
-   */
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
@@ -139,17 +149,17 @@ export class AppComponent implements OnInit, AfterViewChecked {
     } catch(err) { }                 
   }
 
- markAsSeen(messageId: string) {
-  fetch('/api/seen', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      id: messageId, 
-      viewer: this.userName, // e.g., 'user2'
-      target: this.targetUser // e.g., 'user1'
-    })
-  });
-}
+  markAsSeen(messageId: string) {
+    fetch('/api/seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        id: messageId, 
+        viewer: this.userName, 
+        target: this.targetUser 
+      })
+    });
+  }
 
   async send() {
     if (!this.newMessage.trim()) return;
@@ -162,13 +172,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
       text: this.newMessage 
     };
 
-    // Optimistic UI Update
     this.messages.push(msg); 
     const currentText = this.newMessage;
     this.newMessage = ''; 
     this.cdr.detectChanges(); 
 
-    // POST to Locked API
     await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
