@@ -139,17 +139,17 @@ export class AppComponent implements OnInit, AfterViewChecked {
     } catch(err) { }                 
   }
 
-  markAsSeen(messageId: string) {
-    fetch('/api/seen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        id: messageId, 
-        viewer: this.userName,
-        target: this.targetUser 
-      })
-    });
-  }
+ markAsSeen(messageId: string) {
+  fetch('/api/seen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      id: messageId, 
+      viewer: this.userName, // e.g., 'user2'
+      target: this.targetUser // e.g., 'user1'
+    })
+  });
+}
 
   async send() {
     if (!this.newMessage.trim()) return;
