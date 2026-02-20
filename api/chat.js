@@ -13,28 +13,27 @@ const pusher = new Pusher({
 export default async function handler(req, res) {
   const { id, user, target, text } = req.body;
   
-  let vaultKey = '';
-  let roomID = '';
-
-  // Check if this message belongs in the Private Vault or Public Plaza
+  // 1. ELITE PAIR: Save AND Broadcast
   if ((user === 'user1' && target === 'user2') || (user === 'user2' && target === 'user1')) {
-    vaultKey = 'chat:vault-user1-user2';
-    roomID = 'room-vault-user1-user2';
-  } else {
-    vaultKey = 'chat:public-plaza';
-    roomID = 'room-public-plaza';
-  }
-
-  try {
-    const msg = { id, user, text, timestamp: Date.now() };
+    const vaultKey = 'chat:vault-user1-user2';
+    const roomID = 'room-vault-user1-user2';
     
+    const msg = { id, user, text, timestamp: Date.now() };
     await redis.lpush(vaultKey, JSON.stringify(msg));
     await redis.ltrim(vaultKey, 0, 49); 
-
     await pusher.trigger(roomID, "new-message", msg);
     
-    return res.status(200).json({ status: "Routed" });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(200).json({ status: "Vaulted" });
+  } 
+
+  // 2. PUBLIC USERS: Broadcast ONLY (No Redis saving)
+  else {
+    const roomID = 'room-public-plaza';
+    const msg = { id, user, text, timestamp: Date.now() };
+    
+    // We do NOT call redis.lpush here. The message exists only in the air.
+    await pusher.trigger(roomID, "new-message", msg);
+    
+    return res.status(200).json({ status: "Transient" });
   }
 }
