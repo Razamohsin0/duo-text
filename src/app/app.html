@@ -8,10 +8,12 @@
   </div>
 
   <ng-container *ngIf="userName">
- <div class="header">
-  <span class="user-id-header">{{ userName }} // ACTIVE</span>
-  <a href="https://nexifitech.com" target="_blank" class="dev-link"><span style="color: #e3e3e3;">Developed by</span> Nexifitech</a>
-</div>
+    <div class="header">
+      <span class="user-id-header">{{ userName }} // ACTIVE</span>
+      <a href="https://nexifitech.com" target="_blank" class="dev-link">
+        <span style="color: #e3e3e3; opacity: 0.6;">Developed by</span> Nexifitech
+      </a>
+    </div>
 
     <div class="messages-list" #scrollMe>
       <div *ngFor="let msg of messages" [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
@@ -20,8 +22,8 @@
         
         <div class="status-container" *ngIf="msg.user === userName">
           <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
-  {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
-</span>
+            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+          </span>
         </div> 
       </div>
     </div>
@@ -30,6 +32,15 @@
       <div class="input-area">
         <input [(ngModel)]="newMessage" placeholder="Type message..." (keyup.enter)="send()" autocomplete="off">
         <button (click)="send()">▲</button>
+      </div>
+    </div>
+
+    <div *ngIf="sessionTerminated" class="termination-overlay">
+      <div class="terminal-box">
+        <h1 class="glitch-text">ACCESS DENIED</h1>
+        <p>DUPLICATE LOGIN DETECTED</p>
+        <div class="status-line">NODE_IDENT: {{ userName | uppercase }} // STATUS: TERMINATED</div>
+        <button class="reconnect-btn" onclick="window.location.reload()">RE-ESTABLISH CONNECTION</button>
       </div>
     </div>
   </ng-container>
