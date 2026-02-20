@@ -231,22 +231,24 @@ button {
 
 .reconnect-btn {
   background: transparent;
-  border: 1px solid var(--accent-color);
+  border: none;                /* Removed the box/circle border */
+  border-bottom: 1px solid var(--accent-color); /* Adds a simple straight underline */
   color: var(--accent-color);
-  padding: 12px 24px;
+  padding: 5px 0;              /* Tightened padding for text-only look */
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
   font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 2px; /* Increased for a cleaner terminal look */
+  letter-spacing: 2px;
   transition: all 0.3s ease;
-  margin-top: 10px;
+  margin-top: 20px;
+  display: inline-block;
 }
 
 .reconnect-btn:hover {
-  background: var(--accent-color);
-  color: #0b0f14;
-  box-shadow: 0 0 15px var(--accent-color);
+  color: #ffffff;
+  border-bottom: 1px solid #ffffff;
+  text-shadow: 0 0 8px var(--accent-color);
 }
 /* Class to be applied via [class.status-text-synced] in HTML */
 .status-text-synced {
