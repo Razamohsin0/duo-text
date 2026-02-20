@@ -17,6 +17,10 @@ export class AppComponent implements OnInit, AfterViewChecked {
   nameInput = '';
   connectionStatus: string | null = null;
   
+  // NEW: Presence States
+  partnerOnline = false;
+  partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
+  
   newMessage = '';
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
@@ -59,8 +63,8 @@ export class AppComponent implements OnInit, AfterViewChecked {
       }
 
       this.channel = this.pusher.subscribe(roomID);
-      
       this.connectionStatus = `UPLINK ESTABLISHED // MODE: ${mode}`;
+      
       setTimeout(() => { 
         this.connectionStatus = null; 
         this.cdr.detectChanges(); 
@@ -68,15 +72,13 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
       this.setupBindings();
       this.loadHistory();
-      
-      // FIXED: Send the full roomID so the backend triggers the event on the correct channel
       this.terminateOtherSessions(roomID);
-
       this.cdr.detectChanges();
     }
   }
 
   setupBindings() {
+    // 1. Message Handling
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
@@ -87,6 +89,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // 2. Seen Status
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
         this.seenMessages.add(data.id);
@@ -94,6 +97,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // 3. Typing Indicator
     this.channel.bind('client-typing', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -103,9 +107,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // 4. Session Termination
     this.channel.bind('terminate-session', (data: any) => {
       this.ngZone.run(() => {
-        // If the username matches but the ID is different, kill this session
         if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
           this.sessionTerminated = true;
           this.pusher.unsubscribe(this.channel.name);
@@ -113,10 +117,25 @@ export class AppComponent implements OnInit, AfterViewChecked {
         }
       });
     });
+
+    // 5. NEW: User Joined Notification
+    this.channel.bind('user-joined', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.partnerOnline = true;
+          this.partnerStatusText = `${data.user.toUpperCase()} HAS JOINED THE SESSION`;
+          this.cdr.detectChanges();
+
+          setTimeout(() => {
+            this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
+            this.cdr.detectChanges();
+          }, 5000);
+        }
+      });
+    });
   }
 
   onTyping() {
-    // Note: client-triggers require 'private-' prefix (which we have)
     this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.typingTimeout = setTimeout(() => {
@@ -142,7 +161,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
   async send() {
     if (!this.newMessage.trim()) return;
-    
     const messageId = `id-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const msg = { 
       id: messageId, 
@@ -151,14 +169,10 @@ export class AppComponent implements OnInit, AfterViewChecked {
       text: this.newMessage,
       timestamp: Date.now()
     };
-
     this.messages.push(msg);
     const textToSend = this.newMessage;
     this.newMessage = '';
-    
-    // Stop the typing indicator immediately upon sending
     this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
-    
     this.cdr.detectChanges();
 
     await fetch('/api/chat', {
@@ -199,7 +213,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       body: JSON.stringify({ 
         userName: this.userName, 
         sessionId: this.currentSessionId, 
-        roomID: roomID // full room name with 'private-'
+        roomID: roomID 
       })
     });
   }

@@ -12,12 +12,18 @@
       <span class="pulse-dot">●</span> {{ connectionStatus }}
     </div>
 
-    <div class="header">
-      <span class="user-id-header">{{ userName }} // ACTIVE</span>
-      <a href="https://nexifitech.com" target="_blank" class="dev-link">
-        <span style="color: #e3e3e3; opacity: 0.6;">Developed by</span> Nexifitech
-      </a>
-    </div>
+  <div class="header">
+  <span class="user-id-header">{{ userName }} // ACTIVE</span>
+
+  <div class="header-center-status" [class.active]="partnerOnline">
+    <span class="status-icon"></span>
+    <span class="status-text">{{ partnerStatusText }}</span>
+  </div>
+
+  <a href="https://nexifitech.com" target="_blank" class="dev-link">
+    <span style="color: #e3e3e3; opacity: 0.6;">Developed by</span> Nexifitech
+  </a>
+</div>
 
     <div class="messages-list" #scrollMe>
       <div *ngFor="let msg of messages; let isLast = last" 

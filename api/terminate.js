@@ -12,17 +12,22 @@ export default async function handler(req, res) {
   const { userName, sessionId, roomID } = req.body;
 
   try {
-    // We must prepend 'private-' because the frontend is subscribed to private channels
     const channelName = roomID.startsWith('private-') ? roomID : `private-${roomID}`;
 
+    // 1. Terminate other sessions for this user
     await pusher.trigger(channelName, 'terminate-session', {
       userName,
       sessionId
     });
 
+    // 2. NEW: Broadcast to everyone in the room that a new user joined
+    await pusher.trigger(channelName, 'user-joined', {
+      user: userName
+    });
+
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Termination Error:", error);
+    console.error("Handler Error:", error);
     return res.status(500).json({ error: error.message });
   }
 }

@@ -48,7 +48,7 @@ body, html {
   color: var(--accent-color);
 }
 
-/* --- Header Section --- */
+/* --- Header Section (Modified for Center Status) --- */
 .header {
   padding: 14px 20px;
   background: rgba(11, 15, 20, 0.95);
@@ -67,6 +67,42 @@ body, html {
   font-weight: 600;
   text-transform: uppercase;
   opacity: 0.9;
+  flex: 1; /* Helps center the middle item */
+}
+
+/* NEW: Header Center Notification Styles */
+.header-center-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: monospace;
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  color: #4a5568; /* Dimmed when waiting */
+  transition: all 0.5s ease;
+  text-transform: uppercase;
+  flex: 2; 
+  text-align: center;
+}
+
+.header-center-status.active {
+  color: var(--accent-color);
+  text-shadow: 0 0 8px rgba(61, 242, 224, 0.6);
+}
+
+.status-icon {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #4a5568;
+  transition: all 0.5s ease;
+}
+
+.header-center-status.active .status-icon {
+  background: var(--accent-color);
+  box-shadow: 0 0 8px var(--accent-color);
+  animation: pulse-small 2s infinite;
 }
 
 .dev-link {
@@ -79,6 +115,8 @@ body, html {
   transition: all 0.3s ease;
   white-space: nowrap;
   text-shadow: 0 0 10px rgba(61, 242, 224, 0.4);
+  flex: 1;
+  text-align: right;
 }
 
 .dev-link:hover {
@@ -344,6 +382,12 @@ button {
   40% { transform: scale(1.2); opacity: 1; }
 }
 
+@keyframes pulse-small {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 @keyframes slideInUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -362,6 +406,8 @@ button {
 /* --- Responsive Hacks --- */
 @media (max-width: 480px) {
   .message-text { font-size: 0.95rem; }
-  .header { padding: 12px 15px; }
-  .dev-link { font-size: 0.55rem; }
+  .header { padding: 12px 10px; }
+  .user-id-header { font-size: 0.55rem; }
+  .header-center-status { font-size: 0.45rem; flex: 1.5; }
+  .dev-link { font-size: 0.5rem; }
 }
