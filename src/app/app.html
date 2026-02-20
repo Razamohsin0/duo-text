@@ -1,7 +1,7 @@
 <div class="chat-container">
-  <div *ngIf="!userName" class="login-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px;">
-    <h2 style="letter-spacing: 5px; font-weight: 300; font-size: 1rem; margin-bottom: 20px; color:#3df2e0;">INITIATE PROTOCOL</h2>
-    <div class="input-area" style="width: 100%; max-width: 300px;">
+  <div *ngIf="!userName" class="login-screen">
+    <h2>INITIATE PROTOCOL</h2>
+    <div class="input-area">
       <input [(ngModel)]="nameInput" placeholder="Identity..." (keyup.enter)="setUserName()" autocomplete="off">
       <button (click)="setUserName()">➔</button>
     </div>
@@ -19,33 +19,37 @@
       </a>
     </div>
 
-   <div class="messages-list" #scrollMe>
-  <div *ngFor="let msg of messages; let i = index; let isLast = last" 
-       [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
-    
-    <div class="message-header">
-      <span class="user-label">{{ msg.user }}</span>
-      <span class="timestamp-header" *ngIf="msg.timestamp">
-        {{ msg.timestamp | date:'h:mm a' }}
-      </span>
+    <div class="messages-list" #scrollMe>
+      <div *ngFor="let msg of messages; let isLast = last" 
+           [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
+        
+        <div class="message-header">
+          <span class="user-label">{{ msg.user }}</span>
+          <span class="timestamp-header" *ngIf="msg.timestamp">
+            {{ msg.timestamp | date:'h:mm a' }}
+          </span>
+        </div>
+
+        <div class="message-text">{{ msg.text }}</div>
+        
+        <div class="status-container" *ngIf="msg.user === userName && isLast">
+          <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
+            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+          </span>
+        </div> 
+      </div>
+
+      <div class="typing-indicator-wrapper" *ngIf="isPartnerTyping">
+        <div class="ai-typing-bubble">
+          <div class="typing-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+          <span class="ai-typing-text">[SYSTEM]: {{ targetUser | uppercase }} IS ANALYZING NEURAL INPUT...</span>
+        </div>
+      </div>
     </div>
-
-    <div class="message-text">{{ msg.text }}</div>
-    
-    <div class="status-container" *ngIf="msg.user === userName && isLast">
-      <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
-        {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
-      </span>
-    </div> 
-  </div>
-</div>
-
- <div class="typing-indicator" *ngIf="isPartnerTyping" style="margin-top: 10px;">
-  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-  <span style="letter-spacing: 1px; font-weight: bold;">
-    [SYSTEM]: {{ targetUser | uppercase }} IS ANALYZING INPUT / GENERATING RESPONSE...
-  </span>
-</div>
 
     <div class="input-wrapper">
       <div class="input-area">
