@@ -12,20 +12,28 @@ const pusher = new Pusher({
 
 export default async function handler(req, res) {
   const { id, user, target, text } = req.body;
-  const vaultKey = `chat:${[user, target].sort().join(':')}`;
-  const roomID = `room-${[user, target].sort().join('-')}`;
+  
+  let vaultKey = '';
+  let roomID = '';
+
+  // Check if this message belongs in the Private Vault or Public Plaza
+  if ((user === 'user1' && target === 'user2') || (user === 'user2' && target === 'user1')) {
+    vaultKey = 'chat:vault-user1-user2';
+    roomID = 'room-vault-user1-user2';
+  } else {
+    vaultKey = 'chat:public-plaza';
+    roomID = 'room-public-plaza';
+  }
 
   try {
     const msg = { id, user, text, timestamp: Date.now() };
     
-    // Save only to this private vault
     await redis.lpush(vaultKey, JSON.stringify(msg));
     await redis.ltrim(vaultKey, 0, 49); 
 
-    // Broadcast only to the people in this room
     await pusher.trigger(roomID, "new-message", msg);
     
-    return res.status(200).json({ status: "Vaulted" });
+    return res.status(200).json({ status: "Routed" });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

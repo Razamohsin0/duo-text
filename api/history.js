@@ -7,10 +7,15 @@ const redis = new Redis({
 
 export default async function handler(req, res) {
   const { userA, userB } = req.query;
-  if(!userA || !userB) return res.status(400).json([]);
+  let vaultKey = '';
 
-  // Create unique key for just these two users
-  const vaultKey = `chat:${[userA, userB].sort().join(':')}`;
+  // SECURITY: Only allow access to the private vault if the pair is user1 & user2
+  if ((userA === 'user1' && userB === 'user2') || (userA === 'user2' && userB === 'user1')) {
+    vaultKey = 'chat:vault-user1-user2';
+  } else {
+    // Everyone else shares the public history key
+    vaultKey = 'chat:public-plaza';
+  }
 
   try {
     const history = await redis.lrange(vaultKey, 0, -1);
