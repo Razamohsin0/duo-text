@@ -13,9 +13,7 @@
     </div>
 
   <div class="header">
-  <span class="user-id-header">{{ userName }} // ACTIVE</span>
-
-  <div class="header-center-status" [class.active]="partnerOnline">
+  <div class="user-id-header" [class.active]="partnerOnline">
     <span class="status-icon"></span>
     <span class="status-text">{{ partnerStatusText }}</span>
   </div>
