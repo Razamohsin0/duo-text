@@ -36,7 +36,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
       cluster: 'ap2',
       forceTLS: true,
-      authEndpoint: '/api/pusher/auth' // Critical for typing indicator
+      authEndpoint: '/api/pusher/auth'
     });
   }
 
@@ -68,7 +68,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
       this.setupBindings();
       this.loadHistory();
-      this.terminateOtherSessions(roomID.replace('private-', ''));
+      
+      // FIXED: Send the full roomID so the backend triggers the event on the correct channel
+      this.terminateOtherSessions(roomID);
 
       this.cdr.detectChanges();
     }
@@ -103,8 +105,10 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
     this.channel.bind('terminate-session', (data: any) => {
       this.ngZone.run(() => {
+        // If the username matches but the ID is different, kill this session
         if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
           this.sessionTerminated = true;
+          this.pusher.unsubscribe(this.channel.name);
           this.cdr.detectChanges();
         }
       });
@@ -112,6 +116,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   onTyping() {
+    // Note: client-triggers require 'private-' prefix (which we have)
     this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.typingTimeout = setTimeout(() => {
@@ -150,7 +155,10 @@ export class AppComponent implements OnInit, AfterViewChecked {
     this.messages.push(msg);
     const textToSend = this.newMessage;
     this.newMessage = '';
+    
+    // Stop the typing indicator immediately upon sending
     this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
+    
     this.cdr.detectChanges();
 
     await fetch('/api/chat', {
@@ -188,7 +196,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
     await fetch('/api/terminate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID: roomID })
+      body: JSON.stringify({ 
+        userName: this.userName, 
+        sessionId: this.currentSessionId, 
+        roomID: roomID // full room name with 'private-'
+      })
     });
   }
 
