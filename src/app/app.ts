@@ -12,22 +12,26 @@ import Pusher from 'pusher-js';
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
+  // Identity & Connection
   userName = '';
   targetUser = ''; 
   nameInput = '';
   connectionStatus: string | null = null;
   
-  // NEW: Presence States
+  // Partner Presence Logic
   partnerOnline = false;
   partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
   
+  // Messaging
   newMessage = '';
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
   
+  // State Indicators
   isPartnerTyping = false;
   typingTimeout: any;
   
+  // Security & Sync
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
   
@@ -73,6 +77,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       this.setupBindings();
       this.loadHistory();
       this.terminateOtherSessions(roomID);
+
       this.cdr.detectChanges();
     }
   }
@@ -107,7 +112,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 4. Session Termination
+    // 4. Session Kill-Switch
     this.channel.bind('terminate-session', (data: any) => {
       this.ngZone.run(() => {
         if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
@@ -118,18 +123,46 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 5. NEW: User Joined Notification
+    // --- HANDSHAKE PROTOCOL ---
+
+    // 5. Phase A: User A hears User B join via Backend
     this.channel.bind('user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} HAS JOINED THE SESSION`;
-          this.cdr.detectChanges();
-
+          this.partnerStatusText = `${data.user.toUpperCase()} HAS JOINED`;
+          
+          // Wait 1.5s for User B's connection to stabilize, then Ping
           setTimeout(() => {
+            this.channel.trigger('client-presence-ping', { user: this.userName });
             this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
             this.cdr.detectChanges();
-          }, 5000);
+          }, 1500);
+        }
+      });
+    });
+
+    // 6. Phase B: User B receives Ping from User A
+    this.channel.bind('client-presence-ping', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.partnerOnline = true;
+          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
+          
+          // Send back ACK so User A knows sync is complete
+          this.channel.trigger('client-presence-ack', { user: this.userName });
+          this.cdr.detectChanges();
+        }
+      });
+    });
+
+    // 7. Phase C: User A receives ACK
+    this.channel.bind('client-presence-ack', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.partnerOnline = true;
+          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
+          this.cdr.detectChanges();
         }
       });
     });
@@ -156,7 +189,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
         }
         setTimeout(() => this.scrollToBottom(), 100);
       });
-    } catch (e) { console.error("History Error", e); }
+    } catch (e) { console.error("Database Error", e); }
   }
 
   async send() {
