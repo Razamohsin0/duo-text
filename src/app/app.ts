@@ -13,6 +13,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
   userName = '';
+  targetUser = ''; 
   nameInput = '';
   newMessage = '';
   messages: any[] = [];
@@ -24,13 +25,44 @@ export class AppComponent implements OnInit, AfterViewChecked {
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit() {
+    // Initialize Pusher Client
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
       cluster: 'ap2',
       forceTLS: true
     });
+  }
 
-    this.channel = this.pusher.subscribe('chat-room');
-    
+  /**
+   * INITIATE PROTOCOL
+   * Sets the identity and creates a private vault key
+   */
+  setUserName() {
+    if (this.nameInput.trim()) {
+      const input = this.nameInput.trim().toLowerCase();
+      
+      // PRIVACY LOCK: Only user1 and user2 share a vault.
+      // If someone enters another name, they get their own isolated empty vault.
+      this.userName = input;
+      if (this.userName === 'user1') {
+        this.targetUser = 'user2';
+      } else if (this.userName === 'user2') {
+        this.targetUser = 'user1';
+      } else {
+        this.targetUser = 'system'; // Isolated chat for others
+      }
+
+      // Join a unique private room based on both names (alphabetical order)
+      const roomID = [this.userName, this.targetUser].sort().join('-');
+      this.channel = this.pusher.subscribe(`room-${roomID}`);
+      
+      this.setupBindings();
+      this.loadHistory();
+      this.cdr.detectChanges();
+    }
+  }
+
+  setupBindings() {
+    // Listen for new messages in the private vault
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         const exists = this.messages.find(m => m.id === data.id);
@@ -42,6 +74,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // Listen for 'Seen' receipts
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
         this.seenMessages.add(data.id);
@@ -50,16 +83,19 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  // Pulls last 50 messages from Mumbai Redis
+  /**
+   * UPLINK HISTORY
+   * Pulls messages only belonging to this specific user pair
+   */
   async loadHistory() {
     try {
-      const res = await fetch('/api/history');
+      const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
       const data = await res.json();
       this.ngZone.run(() => {
         this.messages = data;
         this.cdr.detectChanges();
         
-        // After history loads, mark the very last message as seen
+        // Mark the last incoming message as seen upon loading
         if (this.messages.length > 0) {
           const lastMsg = this.messages[this.messages.length - 1];
           if (lastMsg.user !== this.userName) {
@@ -74,6 +110,10 @@ export class AppComponent implements OnInit, AfterViewChecked {
     }
   }
 
+  /**
+   * PRECISION SYNC
+   * Uses IntersectionObserver to detect when the user actually sees a message
+   */
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
@@ -99,19 +139,15 @@ export class AppComponent implements OnInit, AfterViewChecked {
     } catch(err) { }                 
   }
 
-  setUserName() {
-    if (this.nameInput.trim()) {
-      this.userName = this.nameInput;
-      this.loadHistory(); // Load stored messages immediately on login
-      this.cdr.detectChanges();
-    }
-  }
-
   markAsSeen(messageId: string) {
     fetch('/api/seen', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: messageId, viewer: this.userName })
+      body: JSON.stringify({ 
+        id: messageId, 
+        viewer: this.userName,
+        target: this.targetUser 
+      })
     });
   }
 
@@ -119,18 +155,29 @@ export class AppComponent implements OnInit, AfterViewChecked {
     if (!this.newMessage.trim()) return;
     
     const messageId = `id-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    const msg = { id: messageId, user: this.userName, text: this.newMessage };
+    const msg = { 
+      id: messageId, 
+      user: this.userName, 
+      target: this.targetUser,
+      text: this.newMessage 
+    };
 
+    // Optimistic UI Update
     this.messages.push(msg); 
     const currentText = this.newMessage;
     this.newMessage = ''; 
     this.cdr.detectChanges(); 
 
-    // This hits api/chat.js which now saves to Redis before broadcasting
+    // POST to Locked API
     await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: messageId, user: this.userName, text: currentText })
+      body: JSON.stringify({ 
+        id: messageId, 
+        user: this.userName, 
+        target: this.targetUser, 
+        text: currentText 
+      })
     });
   }
 }

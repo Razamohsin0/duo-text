@@ -6,11 +6,16 @@ const redis = new Redis({
 })
 
 export default async function handler(req, res) {
+  const { userA, userB } = req.query;
+  if(!userA || !userB) return res.status(400).json([]);
+
+  // Create unique key for just these two users
+  const vaultKey = `chat:${[userA, userB].sort().join(':')}`;
+
   try {
-    const history = await redis.lrange('chat_history', 0, -1);
-    // Reverse because Redis LPUSH makes the newest first
+    const history = await redis.lrange(vaultKey, 0, -1);
     return res.status(200).json(history.reverse());
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json([]);
   }
 }

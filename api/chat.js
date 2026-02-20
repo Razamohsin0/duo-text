@@ -11,20 +11,21 @@ const pusher = new Pusher({
 });
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
-  const { id, user, text } = req.body;
+  const { id, user, target, text } = req.body;
+  const vaultKey = `chat:${[user, target].sort().join(':')}`;
+  const roomID = `room-${[user, target].sort().join('-')}`;
 
   try {
     const msg = { id, user, text, timestamp: Date.now() };
     
-    // 1. Store in Mumbai Redis (Keep last 50)
-    await redis.lpush('chat_history', JSON.stringify(msg));
-    await redis.ltrim('chat_history', 0, 49); 
+    // Save only to this private vault
+    await redis.lpush(vaultKey, JSON.stringify(msg));
+    await redis.ltrim(vaultKey, 0, 49); 
 
-    // 2. Broadcast to active users
-    await pusher.trigger("chat-room", "new-message", msg);
+    // Broadcast only to the people in this room
+    await pusher.trigger(roomID, "new-message", msg);
     
-    return res.status(200).json({ status: "Archived & Broadcasted" });
+    return res.status(200).json({ status: "Vaulted" });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
