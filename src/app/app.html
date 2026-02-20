@@ -20,18 +20,20 @@
       </a>
     </div>
 
-    <div class="messages-list" #scrollMe>
-      <div *ngFor="let msg of messages" [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
-        <span class="user-label">{{ msg.user }}</span>
-        <div class="message-text">{{ msg.text }}</div>
-        
-        <div class="status-container" *ngIf="msg.user === userName">
-          <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
-            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
-          </span>
-        </div> 
-      </div>
-    </div>
+   <div class="messages-list" #scrollMe>
+  <div *ngFor="let msg of messages; let i = index; let isLast = last" 
+       [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
+    
+    <span class="user-label">{{ msg.user }}</span>
+    <div class="message-text">{{ msg.text }}</div>
+    
+    <div class="status-container" *ngIf="msg.user === userName && isLast">
+      <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
+        {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+      </span>
+    </div> 
+  </div>
+</div>
 
     <div class="input-wrapper">
       <div class="input-area">
