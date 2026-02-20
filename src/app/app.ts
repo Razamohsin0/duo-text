@@ -21,6 +21,10 @@ export class AppComponent implements OnInit, AfterViewChecked {
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
   
+  // New States
+  isPartnerTyping = false;
+  typingTimeout: any;
+  
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
   
@@ -30,6 +34,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit() {
+    // Enable client events in your Pusher Dashboard to make 'client-typing' work
     this.pusher = new Pusher('f67a69ab8d352765a811', { 
       cluster: 'ap2',
       forceTLS: true
@@ -44,32 +49,24 @@ export class AppComponent implements OnInit, AfterViewChecked {
       let roomID = '';
       let mode = '';
 
-      // ELITE PAIR LOCK
       if (this.userName === 'user1' || this.userName === 'user2') {
         this.targetUser = (this.userName === 'user1') ? 'user2' : 'user1';
         roomID = 'vault-user1-user2';
         mode = 'SECURE VAULT';
-      } 
-      // PUBLIC PLAZA
-      else {
+      } else {
         this.targetUser = 'public_group';
         roomID = 'public-plaza';
         mode = 'PUBLIC PLAZA';
       }
 
-      // Explicitly subscribe to the same channel name the API uses
       this.channel = this.pusher.subscribe(`room-${roomID}`);
       
       this.connectionStatus = `UPLINK ESTABLISHED // MODE: ${mode}`;
-      setTimeout(() => { 
-        this.connectionStatus = null; 
-        this.cdr.detectChanges(); 
-      }, 4000);
+      setTimeout(() => { this.connectionStatus = null; this.cdr.detectChanges(); }, 4000);
 
       this.setupBindings();
       this.loadHistory();
       this.terminateOtherSessions(roomID);
-
       this.cdr.detectChanges();
     }
   }
@@ -92,6 +89,16 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // TYPING BINDING
+    this.channel.bind('client-typing', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.isPartnerTyping = data.isTyping;
+          this.cdr.detectChanges();
+        }
+      });
+    });
+
     this.channel.bind('terminate-session', (data: any) => {
       this.ngZone.run(() => {
         if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
@@ -102,8 +109,15 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
+  onTyping() {
+    this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
+    if (this.typingTimeout) clearTimeout(this.typingTimeout);
+    this.typingTimeout = setTimeout(() => {
+      this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
+    }, 2000);
+  }
+
   async loadHistory() {
-    // History is only fetched for user1/user2 via the API's internal logic
     try {
       const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
       const data = await res.json();
@@ -127,15 +141,16 @@ export class AppComponent implements OnInit, AfterViewChecked {
       id: messageId, 
       user: this.userName, 
       target: this.targetUser, 
-      text: this.newMessage 
+      text: this.newMessage,
+      timestamp: Date.now() // Added timestamp locally
     };
 
     this.messages.push(msg);
     const textToSend = this.newMessage;
     this.newMessage = '';
+    this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
     this.cdr.detectChanges();
 
-    // The API handles whether to save to Redis or just broadcast
     await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -153,7 +168,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
           }
         });
       }, { threshold: 0.8 });
-
       const elements = document.querySelectorAll('.message-item.other');
       const lastElement = elements[elements.length - 1];
       if (lastElement) observer.observe(lastElement);
@@ -164,11 +178,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
     fetch('/api/seen', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        id: messageId, 
-        viewer: this.userName, 
-        target: this.targetUser 
-      })
+      body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser })
     });
   }
 
@@ -176,11 +186,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
     await fetch('/api/terminate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        userName: this.userName, 
-        sessionId: this.currentSessionId,
-        roomID: roomID 
-      })
+      body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID: roomID })
     });
   }
 

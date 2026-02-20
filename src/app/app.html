@@ -8,7 +8,6 @@
   </div>
 
   <ng-container *ngIf="userName">
-    
     <div *ngIf="connectionStatus" class="status-toast">
       <span class="pulse-dot">●</span> {{ connectionStatus }}
     </div>
@@ -20,24 +19,34 @@
       </a>
     </div>
 
-   <div class="messages-list" #scrollMe>
-  <div *ngFor="let msg of messages; let i = index; let isLast = last" 
-       [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
-    
-    <span class="user-label">{{ msg.user }}</span>
-    <div class="message-text">{{ msg.text }}</div>
-    
-    <div class="status-container" *ngIf="msg.user === userName && isLast">
-      <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
-        {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
-      </span>
-    </div> 
-  </div>
-</div>
+    <div class="messages-list" #scrollMe>
+      <div *ngFor="let msg of messages; let i = index; let isLast = last" 
+           [class]="msg.user === userName ? 'message-item me' : 'message-item other'">
+        
+        <span class="user-label">{{ msg.user }}</span>
+        <div class="message-text">{{ msg.text }}</div>
+        
+        <div class="status-container" *ngIf="msg.user === userName && isLast">
+          <span class="timestamp-text" *ngIf="msg.timestamp">{{ msg.timestamp | date:'HH:mm' }}</span>
+          <span [class.status-text-synced]="seenMessages.has(msg.id)" class="status-text">
+            {{ seenMessages.has(msg.id) ? '● SYNCED' : '○ UPLINKED' }}
+          </span>
+        </div> 
+      </div>
+    </div>
+
+    <div class="typing-indicator" *ngIf="isPartnerTyping">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      {{ targetUser === 'public_group' ? 'Someone' : targetUser }} is typing...
+    </div>
 
     <div class="input-wrapper">
       <div class="input-area">
-        <input [(ngModel)]="newMessage" placeholder="Type message..." (keyup.enter)="send()" autocomplete="off">
+        <input [(ngModel)]="newMessage" 
+               placeholder="Type message..." 
+               (keyup.enter)="send()" 
+               (input)="onTyping()"
+               autocomplete="off">
         <button (click)="send()">▲</button>
       </div>
     </div>
@@ -50,6 +59,5 @@
         <button class="reconnect-btn" onclick="window.location.reload()">LOG BACK IN</button>
       </div>
     </div>
-
   </ng-container>
 </div>
