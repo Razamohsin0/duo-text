@@ -19,7 +19,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   connectionStatus: string | null = null;
   
   // Visibility & UI state
-  isChatVisible = false; // Controls the collapse/expand state without logging out
+  isChatVisible = false; 
   
   // Partner Presence Logic
   partnerOnline = false;
@@ -55,7 +55,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
       
-      // LOGIC UPDATE: If user is already logged in but just expanding the collapsed chat
       if (this.userName === input) {
         this.isChatVisible = true;
         this.cdr.detectChanges();
@@ -63,50 +62,37 @@ export class AppComponent implements OnInit, AfterViewChecked {
       }
 
       this.userName = input;
-      this.isChatVisible = true; // Make chat visible upon initial login
+      this.isChatVisible = true; 
       
       let roomID = '';
-      let mode = '';
-
       if (this.userName === 'user1' || this.userName === 'user2') {
         this.targetUser = (this.userName === 'user1') ? 'user2' : 'user1';
         roomID = 'private-vault-user1-user2';
-        mode = 'SECURE VAULT';
       } else {
         this.targetUser = 'public_group';
         roomID = 'private-public-plaza';
-        mode = 'PUBLIC PLAZA';
       }
 
       this.channel = this.pusher.subscribe(roomID);
-      this.connectionStatus = `UPLINK ESTABLISHED // MODE: ${mode}`;
-      
-      setTimeout(() => { 
-        this.connectionStatus = null; 
-        this.cdr.detectChanges(); 
-      }, 4000);
-
       this.setupBindings();
       this.loadHistory();
       this.terminateOtherSessions(roomID);
-
       this.cdr.detectChanges();
     }
   }
 
   setupBindings() {
-    // 1. Message Handling
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
           this.messages.push(data);
+          // CALLING THE PREVIOUSLY MISSING METHOD
           this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
       });
     });
 
-    // 2. Seen Status
     this.channel.bind('message-seen', (data: any) => {
       this.ngZone.run(() => {
         this.seenMessages.add(data.id);
@@ -114,7 +100,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 3. Typing Indicator
     this.channel.bind('client-typing', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -124,26 +109,14 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 4. Session Kill-Switch
-    this.channel.bind('terminate-session', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
-          this.sessionTerminated = true;
-          this.pusher.unsubscribe(this.channel.name);
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    // Handshake & Presence
     this.channel.bind('user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} HAS JOINED`;
+          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
+          this.syncOfflineMessages();
           setTimeout(() => {
             this.channel.trigger('client-presence-ping', { user: this.userName });
-            this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
             this.cdr.detectChanges();
           }, 1500);
         }
@@ -156,6 +129,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
           this.partnerOnline = true;
           this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
           this.channel.trigger('client-presence-ack', { user: this.userName });
+          this.syncOfflineMessages();
           this.cdr.detectChanges();
         }
       });
@@ -175,7 +149,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = false;
-          this.partnerStatusText = `${data.user.toUpperCase()} DISCONNECTED`;
+          this.partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
           this.cdr.detectChanges();
         }
       });
@@ -188,53 +162,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  onTyping() {
-    this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
-    if (this.typingTimeout) clearTimeout(this.typingTimeout);
-    this.typingTimeout = setTimeout(() => {
-      this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
-    }, 2000);
-  }
-
-  async loadHistory() {
-    try {
-      const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
-      const data = await res.json();
-      this.ngZone.run(() => {
-        this.messages = Array.isArray(data) ? data.reverse() : [];
-        this.cdr.detectChanges();
-        if (this.messages.length > 0) {
-          const lastMsg = this.messages[this.messages.length - 1];
-          if (lastMsg.user !== this.userName) this.markAsSeen(lastMsg.id);
-        }
-        setTimeout(() => this.scrollToBottom(), 100);
-      });
-    } catch (e) { console.error("Database Error", e); }
-  }
-
-  async send() {
-    if (!this.newMessage.trim()) return;
-    const messageId = `id-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    const msg = { 
-      id: messageId, 
-      user: this.userName, 
-      target: this.targetUser, 
-      text: this.newMessage,
-      timestamp: Date.now()
-    };
-    this.messages.push(msg);
-    const textToSend = this.newMessage;
-    this.newMessage = '';
-    this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
-    this.cdr.detectChanges();
-
-    await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...msg, text: textToSend })
-    });
-  }
-
+  // --- RESTORED METHOD ---
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
@@ -251,6 +179,36 @@ export class AppComponent implements OnInit, AfterViewChecked {
     }, 100);
   }
 
+  syncOfflineMessages() {
+    const unreadPartnerMsgs = this.messages.filter(m => m.user !== this.userName);
+    if (unreadPartnerMsgs.length > 0) {
+      const lastMsg = unreadPartnerMsgs[unreadPartnerMsgs.length - 1];
+      this.markAsSeen(lastMsg.id);
+    }
+  }
+
+  async send() {
+    if (!this.newMessage.trim()) return;
+    const messageId = `id-${Date.now()}`;
+    const msg = { 
+      id: messageId, 
+      user: this.userName, 
+      target: this.targetUser, 
+      text: this.newMessage,
+      timestamp: Date.now()
+    };
+    this.messages.push(msg);
+    const textToSend = this.newMessage;
+    this.newMessage = '';
+    this.cdr.detectChanges();
+
+    await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...msg, text: textToSend })
+    });
+  }
+
   markAsSeen(messageId: string) {
     fetch('/api/seen', {
       method: 'POST',
@@ -259,15 +217,31 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
+  async loadHistory() {
+    try {
+      const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
+      const data = await res.json();
+      this.ngZone.run(() => {
+        this.messages = Array.isArray(data) ? data.reverse() : [];
+        this.cdr.detectChanges();
+        setTimeout(() => this.scrollToBottom(), 100);
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  onTyping() {
+    this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
+    if (this.typingTimeout) clearTimeout(this.typingTimeout);
+    this.typingTimeout = setTimeout(() => {
+      this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
+    }, 2000);
+  }
+
   async terminateOtherSessions(roomID: string) {
     await fetch('/api/terminate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        userName: this.userName, 
-        sessionId: this.currentSessionId, 
-        roomID: roomID 
-      })
+      body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID })
     });
   }
 
