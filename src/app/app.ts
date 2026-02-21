@@ -18,6 +18,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
   nameInput = '';
   connectionStatus: string | null = null;
   
+  // Visibility & UI state
+  isChatVisible = false; // Controls the collapse/expand state without logging out
+  
   // Partner Presence Logic
   partnerOnline = false;
   partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
@@ -51,7 +54,16 @@ export class AppComponent implements OnInit, AfterViewChecked {
   setUserName() {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
+      
+      // LOGIC UPDATE: If user is already logged in but just expanding the collapsed chat
+      if (this.userName === input) {
+        this.isChatVisible = true;
+        this.cdr.detectChanges();
+        return;
+      }
+
       this.userName = input;
+      this.isChatVisible = true; // Make chat visible upon initial login
       
       let roomID = '';
       let mode = '';
@@ -123,16 +135,12 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // --- HANDSHAKE & PRESENCE PROTOCOL ---
-
-    // 5. User A hears User B join via Backend
+    // Handshake & Presence
     this.channel.bind('user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
           this.partnerStatusText = `${data.user.toUpperCase()} HAS JOINED`;
-          
-          // Wait 1.5s for User B's connection to stabilize, then Ping
           setTimeout(() => {
             this.channel.trigger('client-presence-ping', { user: this.userName });
             this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
@@ -142,21 +150,17 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 6. User B receives Ping from User A
     this.channel.bind('client-presence-ping', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
           this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          
-          // Send back ACK so User A knows sync is complete
           this.channel.trigger('client-presence-ack', { user: this.userName });
           this.cdr.detectChanges();
         }
       });
     });
 
-    // 7. User A receives ACK (Final Sync)
     this.channel.bind('client-presence-ack', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -167,7 +171,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 8. Listen for Partner Disconnect (Manual Trigger)
     this.channel.bind('client-user-left', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -178,7 +181,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 9. Tab Closure Detection
     window.addEventListener('beforeunload', () => {
       if (this.channel) {
         this.channel.trigger('client-user-left', { user: this.userName });
