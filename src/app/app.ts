@@ -12,29 +12,18 @@ import Pusher from 'pusher-js';
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
-  // Identity & Connection
   userName = '';
   targetUser = ''; 
   nameInput = '';
   connectionStatus: string | null = null;
-  
-  // Visibility & UI state
   isChatVisible = false; 
-  
-  // Partner Presence Logic
   partnerOnline = false;
   partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
-  
-  // Messaging
   newMessage = '';
   messages: any[] = [];
   seenMessages: Set<string> = new Set(); 
-  
-  // State Indicators
   isPartnerTyping = false;
   typingTimeout: any;
-  
-  // Security & Sync
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
   
@@ -49,29 +38,27 @@ export class AppComponent implements OnInit, AfterViewChecked {
       forceTLS: true,
       authEndpoint: '/api/pusher/auth'
     });
+
+    // Global listener for tab closure to notify partner instantly
+    window.addEventListener('beforeunload', () => this.collapseChat());
   }
 
   setUserName() {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
-      
       if (this.userName === input) {
         this.isChatVisible = true;
+        this.notifyStatus(true); // Tell partner we are back
         this.cdr.detectChanges();
         return;
       }
-
       this.userName = input;
-      this.isChatVisible = true; 
+      this.isChatVisible = true;
       
-      let roomID = '';
-      if (this.userName === 'user1' || this.userName === 'user2') {
-        this.targetUser = (this.userName === 'user1') ? 'user2' : 'user1';
-        roomID = 'private-vault-user1-user2';
-      } else {
-        this.targetUser = 'public_group';
-        roomID = 'private-public-plaza';
-      }
+      let roomID = (this.userName === 'user1' || this.userName === 'user2') 
+        ? 'private-vault-user1-user2' 
+        : 'private-public-plaza';
+      this.targetUser = (this.userName === 'user1') ? 'user2' : (this.userName === 'user2' ? 'user1' : 'public_group');
 
       this.channel = this.pusher.subscribe(roomID);
       this.setupBindings();
@@ -81,13 +68,25 @@ export class AppComponent implements OnInit, AfterViewChecked {
     }
   }
 
+  // New Method: Handles manual collapse and notifies partner
+  collapseChat() {
+    this.isChatVisible = false;
+    this.notifyStatus(false);
+  }
+
+  notifyStatus(active: boolean) {
+    if (this.channel) {
+      const event = active ? 'client-user-joined' : 'client-user-left';
+      this.channel.trigger(event, { user: this.userName });
+    }
+  }
+
   setupBindings() {
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
-        if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
+        if (data.user !== this.userName) {
           this.messages.push(data);
-          // CALLING THE PREVIOUSLY MISSING METHOD
-          this.waitForVisibility(data.id);
+          if (this.isChatVisible) this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
       });
@@ -100,6 +99,29 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
+    // Logic to handle partner joining OR expanding their chat
+    this.channel.bind('client-user-joined', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.partnerOnline = true;
+          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
+          this.syncSeenOnArrival(); // Force Sync
+          this.cdr.detectChanges();
+        }
+      });
+    });
+
+    // Logic to handle partner closing OR collapsing their chat
+    this.channel.bind('client-user-left', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.partnerOnline = false;
+          this.partnerStatusText = 'PARTNER INACTIVE';
+          this.cdr.detectChanges();
+        }
+      });
+    });
+
     this.channel.bind('client-typing', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -108,61 +130,14 @@ export class AppComponent implements OnInit, AfterViewChecked {
         }
       });
     });
-
-    this.channel.bind('user-joined', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          this.syncOfflineMessages();
-          setTimeout(() => {
-            this.channel.trigger('client-presence-ping', { user: this.userName });
-            this.cdr.detectChanges();
-          }, 1500);
-        }
-      });
-    });
-
-    this.channel.bind('client-presence-ping', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          this.channel.trigger('client-presence-ack', { user: this.userName });
-          this.syncOfflineMessages();
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    this.channel.bind('client-presence-ack', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    this.channel.bind('client-user-left', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = false;
-          this.partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    window.addEventListener('beforeunload', () => {
-      if (this.channel) {
-        this.channel.trigger('client-user-left', { user: this.userName });
-      }
-    });
   }
 
-  // --- RESTORED METHOD ---
+  // CRITICAL FIX: Marks all unread partner messages as seen when they appear
+  syncSeenOnArrival() {
+    const unreadPartnerMsgs = this.messages.filter(m => m.user !== this.userName);
+    unreadPartnerMsgs.forEach(msg => this.markAsSeen(msg.id));
+  }
+
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
@@ -172,26 +147,24 @@ export class AppComponent implements OnInit, AfterViewChecked {
             observer.disconnect();
           }
         });
-      }, { threshold: 0.8 });
-      const elements = document.querySelectorAll('.message-item.other');
-      const lastElement = elements[elements.length - 1];
-      if (lastElement) observer.observe(lastElement);
-    }, 100);
+      }, { threshold: 0.5 });
+      const els = document.querySelectorAll('.message-item.other');
+      if (els.length > 0) observer.observe(els[els.length - 1]);
+    }, 200);
   }
 
-  syncOfflineMessages() {
-    const unreadPartnerMsgs = this.messages.filter(m => m.user !== this.userName);
-    if (unreadPartnerMsgs.length > 0) {
-      const lastMsg = unreadPartnerMsgs[unreadPartnerMsgs.length - 1];
-      this.markAsSeen(lastMsg.id);
-    }
+  markAsSeen(messageId: string) {
+    fetch('/api/seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser })
+    });
   }
 
   async send() {
     if (!this.newMessage.trim()) return;
-    const messageId = `id-${Date.now()}`;
     const msg = { 
-      id: messageId, 
+      id: `id-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
       user: this.userName, 
       target: this.targetUser, 
       text: this.newMessage,
@@ -209,31 +182,22 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  markAsSeen(messageId: string) {
-    fetch('/api/seen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser })
-    });
-  }
-
   async loadHistory() {
     try {
       const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
       const data = await res.json();
-      this.ngZone.run(() => {
-        this.messages = Array.isArray(data) ? data.reverse() : [];
-        this.cdr.detectChanges();
-        setTimeout(() => this.scrollToBottom(), 100);
-      });
+      this.messages = Array.isArray(data) ? data.reverse() : [];
+      this.syncSeenOnArrival(); // Sync seen status on load
+      this.cdr.detectChanges();
+      this.scrollToBottom();
     } catch (e) { console.error(e); }
   }
 
   onTyping() {
-    this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
+    if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.typingTimeout = setTimeout(() => {
-      this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
+      if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
     }, 2000);
   }
 
