@@ -104,15 +104,14 @@
 
         <div class="chat-container" *ngIf="userName && isChatVisible">
           <div class="header">
-            <div class="user-id-header"><span class="label">ID:</span> {{ userName | uppercase }}</div>
+            <div class="user-id-header"><span class="label">YOUR ID:</span> {{ userName | uppercase }}</div>
             <div class="header-center-status" [class.active]="partnerOnline">
               <span class="status-icon" [style.background-color]="partnerOnline ? '#00ff41' : '#ff3b30'"></span>
-              <span class="status-text" [style.color]="partnerOnline ? '#111' : '#ff3b30'">
+              <span class="status-text" [style.color]="partnerOnline ? '#ffffff' : '#ff3b30'">
                 {{ partnerOnline ? partnerStatusText : 'PARTNER INACTIVE' }}
               </span>
             </div>
             <div class="header-right-controls">
-              <a href="https://nexifitech.com" target="_blank" class="dev-link">BY Nexifitech</a>
               <button class="collapse-btn" (click)="collapseChat()" title="Collapse Chat">✕</button>
             </div>
           </div>
@@ -131,7 +130,7 @@
 
           <div class="input-wrapper">
             <div class="input-area">
-              <input [(ngModel)]="newMessage" placeholder="Type message..." (keyup.enter)="send()" (input)="onTyping()" autocomplete="off">
+              <input [(ngModel)]="newMessage" placeholder="" (keyup.enter)="send()" (input)="onTyping()" autocomplete="off">
               <button (click)="send()">▲</button>
             </div>
           </div>

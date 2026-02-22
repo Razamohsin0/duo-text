@@ -291,7 +291,7 @@
 
 /* 7. The Secret Footer */
 .lama-footer {
-  background: #fcfcfc;
+  background: #000000;
   padding: 80px 40px 20px;
   border-top: 1px solid #eee;
 }
@@ -309,20 +309,21 @@
   letter-spacing: 2px;
   margin-bottom: 25px;
   font-weight: 600;
+  color: #ffffff;
 }
 
 .footer-col a {
   display: block;
-  color: #666;
+  color: #ffffff;
   text-decoration: none;
   font-size: 13px;
   margin-bottom: 15px;
 }
 
-.footer-col a:hover { color: #000; }
+.footer-col a:hover { color: #716f6f; }
 
 .newsletter-col p {
-  color: #666;
+  color: #ffffff;
   font-size: 13px;
   line-height: 1.6;
   margin-bottom: 20px;
@@ -330,7 +331,7 @@
 
 .email-input-box {
   display: flex;
-  border-bottom: 1px solid #000;
+  border-bottom: 1px solid #ffffff;
   padding-bottom: 10px;
 }
 
@@ -341,6 +342,7 @@
   outline: none;
   font-family: 'Inter', sans-serif;
   font-size: 14px;
+  color: #ffffff;
 }
 
 .email-input-box button {
@@ -351,6 +353,7 @@
   font-size: 12px;
   letter-spacing: 1px;
   cursor: pointer;
+  color: #ffffff;
 }
 
 .footer-copyright {
@@ -370,15 +373,15 @@
 .chat-container {
   width: 100%;
   height: 450px; 
-  background-color: #ffffff; 
-  color: #111111; 
+  background-color: #000000; 
+  color: #ffffff; 
   font-family: 'Inter', sans-serif; 
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-radius: 4px; 
-  border: 1px solid #e0e0e0; 
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); 
+  border: 1px solid #000000; 
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.05); 
   position: relative; 
   margin-top: 10px;
 }
@@ -390,12 +393,12 @@
   align-items: center;
   padding: 10px 20px;
   border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
+  background: #716f6f;
   height: 55px; /* Consistent height for alignment */
 }
 
-.user-id-header { font-weight: 600; font-size: 11px; letter-spacing: 1px; color: #666; }
-.label { color: #111; font-weight: 700; }
+.user-id-header { font-weight: 600; font-size: 11px; letter-spacing: 1px; color: #ffffff; }
+.label { color: #ffffff; font-weight: 700; }
 
 .header-center-status {
   display: flex;
@@ -407,7 +410,7 @@
   color: #999; 
 }
 
-.header-center-status.active { color: #111; }
+.header-center-status.active { color: #ffffff; }
 
 .status-icon {
   width: 6px; height: 6px;
@@ -424,7 +427,7 @@
 }
 
 .dev-link {
-  color: #999; 
+  color: #ffffff; 
   text-decoration: none;
   font-size: 10px;
   letter-spacing: 1px;
@@ -458,8 +461,8 @@
 .status-toast {
   position: absolute;
   top: 65px; left: 50%; transform: translateX(-50%);
-  background: #111;
-  color: #fff;
+  background: #ffffff;
+  color: #000000;
   border: none;
   padding: 8px 16px;
   font-size: 11px;
@@ -479,11 +482,11 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
-  background: #fff;
+  background: #716f6f;
 }
 
 .messages-list::-webkit-scrollbar { width: 4px; }
-.messages-list::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 4px;}
+.messages-list::-webkit-scrollbar-thumb { background: #ffffff; border-radius: 4px;}
 
 .message-item {
   display: flex;
@@ -499,7 +502,7 @@
   font-weight: 600;
   letter-spacing: 1px;
   margin-bottom: 6px;
-  color: #999;
+  color: #ffffff;
   display: flex;
   gap: 10px;
 }
@@ -514,14 +517,14 @@
 
 .message-item.other .message-text {
   background: #f4f4f4;
-  color: #111;
+  color: #716f6f;
   border: 1px solid #eee;
 }
 
 .message-item.me .message-text {
-  background: #111;
-  color: #fff;
-  border: 1px solid #111;
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #716f6f;
 }
 
 .status-container {
@@ -529,14 +532,14 @@
   font-weight: 600;
   letter-spacing: 1px;
   margin-top: 6px;
-  color: #aaa;
+  color: #ffffff;
 }
 
 /* Typing Indicator */
 .typing-indicator-wrapper { align-self: flex-start; margin-top: 5px; }
 .ai-typing-bubble { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #999; font-weight: 500; }
 .typing-dots { display: flex; gap: 3px; }
-.typing-dots .dot { width: 4px; height: 4px; background: #111; border-radius: 50%; animation: blink 1.4s infinite both; }
+.typing-dots .dot { width: 4px; height: 4px; background: #d6d5d5; border-radius: 50%; animation: blink 1.4s infinite both; }
 .typing-dots .dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dots .dot:nth-child(3) { animation-delay: 0.4s; }
 
@@ -544,13 +547,13 @@
 .input-wrapper {
   padding: 15px 20px;
   border-top: 1px solid #f0f0f0;
-  background: #fafafa;
+  background: #716f6f;
 }
 
 .input-area {
   display: flex;
   border: 1px solid #ddd;
-  background: #fff;
+  background: #545151;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -560,7 +563,7 @@
   background: transparent;
   border: none;
   padding: 12px 15px;
-  color: #111;
+  color: #ffffff;
   font-family: inherit;
   font-size: 13px;
   outline: none;
