@@ -130,8 +130,8 @@
 
           <div class="input-wrapper">
             <div class="input-area">
-              <input [(ngModel)]="newMessage" placeholder="" (keyup.enter)="send()" (input)="onTyping()" autocomplete="off">
-              <button (click)="send()">▲</button>
+              <input [(ngModel)]="newMessage" placeholder="Message..." (keyup.enter)="send()" (input)="onTyping()" autocomplete="off">
+              <button (click)="send()" style="color: rgb(255, 255, 255);">▲</button>
             </div>
           </div>
         </div> 
