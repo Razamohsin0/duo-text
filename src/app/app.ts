@@ -47,7 +47,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       if (this.userName === input) {
         this.isChatVisible = true;
         this.notifyPresence(true); 
-        this.loadHistory(); // Re-load and sync when expanding
+        this.loadHistory(); // Re-sync messages on re-entry
         return;
       }
       this.userName = input;
@@ -64,7 +64,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
   collapseChat() {
     this.isChatVisible = false;
-    this.notifyPresence(false); 
+    this.notifyPresence(false); // Notify partner instantly on X click
   }
 
   notifyPresence(isActive: boolean) {
@@ -78,6 +78,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.messages.push(data);
+          this.messages.sort((a, b) => a.timestamp - b.timestamp);
           if (this.isChatVisible) this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
@@ -91,14 +92,12 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // When the receiver sees the sender is already here
     this.channel.bind('client-user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
           this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          // If we have unread messages from them, mark them seen now
-          this.syncOnArrival(); 
+          this.syncOnArrival(); // Force sync when partner arrives
           this.cdr.detectChanges();
         }
       });
@@ -119,12 +118,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  // Forces the "Seen" status for ALL unread messages from the partner
   syncOnArrival() {
     const partnerMsgs = this.messages.filter(m => m.user !== this.userName);
     if (partnerMsgs.length > 0) {
-      // Mark the most recent message seen; your backend logic should 
-      // ideally mark all previous messages in that room as seen too.
       this.markAsSeen(partnerMsgs[partnerMsgs.length - 1].id);
     }
   }
@@ -157,11 +153,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
       const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
       const data = await res.json();
       this.ngZone.run(() => {
-        this.messages = Array.isArray(data) ? data.reverse() : [];
-        // CRITICAL: The moment history is loaded, tell the sender we've seen it
-        this.syncOnArrival(); 
+        let history = Array.isArray(data) ? data : [];
+        this.messages = history.sort((a, b) => a.timestamp - b.timestamp);
+        this.syncOnArrival(); // Mark seen immediately on load
         this.cdr.detectChanges();
-        setTimeout(() => this.scrollToBottom(), 100);
+        setTimeout(() => this.scrollToBottom(), 200);
       });
     } catch (e) { console.error(e); }
   }
@@ -192,5 +188,9 @@ export class AppComponent implements OnInit, AfterViewChecked {
   ngAfterViewChecked() { this.scrollToBottom(); }
   scrollToBottom(): void {
     try { this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight; } catch (err) { }
+  }
+  
+  trackByFn(index: number, item: any) {
+    return item.id;
   }
 }
