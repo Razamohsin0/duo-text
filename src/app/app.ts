@@ -12,13 +12,13 @@ import Pusher from 'pusher-js';
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
-  // Identity & Connection State
+  // Identity & Connection
   userName = '';
   targetUser = ''; 
   nameInput = '';
   connectionStatus: string | null = null;
   
-  // UI & Visibility State
+  // UI State
   isChatVisible = false;
   partnerOnline = false;
   partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
@@ -28,11 +28,13 @@ export class AppComponent implements OnInit, AfterViewChecked {
   messages: any[] = [];
   seenMessages: Set<string> = new Set();
   
-  // Interaction State
+  // Interaction & Scroll State
   isPartnerTyping = false;
   typingTimeout: any;
+  newMessagesCount = 0;
+  isUserAtBottom = true;
   
-  // Security & Persistence
+  // Security
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
   
@@ -47,30 +49,22 @@ export class AppComponent implements OnInit, AfterViewChecked {
       forceTLS: true,
       authEndpoint: '/api/pusher/auth'
     });
-
     window.addEventListener('beforeunload', () => this.collapseChat());
   }
 
   setUserName() {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
-      
       if (this.userName === input) {
         this.isChatVisible = true;
         this.notifyPresence(true);
         this.loadHistory();
         return;
       }
-
       this.userName = input;
       this.isChatVisible = true;
-      
-      let roomID = (this.userName === 'user1' || this.userName === 'user2') 
-        ? 'private-vault-user1-user2' 
-        : 'private-public-plaza';
-
+      let roomID = (this.userName === 'user1' || this.userName === 'user2') ? 'private-vault-user1-user2' : 'private-public-plaza';
       this.targetUser = (this.userName === 'user1') ? 'user2' : (this.userName === 'user2' ? 'user1' : 'public_group');
-
       this.channel = this.pusher.subscribe(roomID);
       this.setupBindings();
       this.loadHistory();
@@ -79,39 +73,30 @@ export class AppComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  collapseChat() {
-    this.isChatVisible = false;
-    this.notifyPresence(false);
-  }
-
-  notifyPresence(isActive: boolean) {
-    if (this.channel) {
-      this.channel.trigger(isActive ? 'client-user-joined' : 'client-user-left', { user: this.userName });
-    }
-  }
-
   setupBindings() {
-    // 1. Message Handling & Sorting
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
           this.messages.push(data);
           this.messages.sort((a, b) => a.timestamp - b.timestamp);
+          
+          // Logic for Auto-scroll vs Notification Badge
+          if (this.isUserAtBottom) {
+            setTimeout(() => this.scrollToBottom(), 50);
+          } else {
+            this.newMessagesCount++;
+          }
+          
           if (this.isChatVisible) this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
       });
     });
 
-    // 2. Receipt Sync
     this.channel.bind('message-seen', (data: any) => {
-      this.ngZone.run(() => {
-        this.seenMessages.add(data.id);
-        this.cdr.detectChanges();
-      });
+      this.ngZone.run(() => { this.seenMessages.add(data.id); this.cdr.detectChanges(); });
     });
 
-    // 3. Bidirectional Handshake: Ping
     this.channel.bind('client-user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -124,7 +109,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 4. Bidirectional Handshake: Pong
     this.channel.bind('client-presence-ping', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -137,7 +121,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 5. Bidirectional Handshake: Final Ack
     this.channel.bind('client-presence-ack', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -148,17 +131,13 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 6. Typing Indicator Binding
     this.channel.bind('client-typing', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.isPartnerTyping = data.isTyping;
           if (this.typingTimeout) clearTimeout(this.typingTimeout);
           if (data.isTyping) {
-            this.typingTimeout = setTimeout(() => {
-              this.isPartnerTyping = false;
-              this.cdr.detectChanges();
-            }, 5000);
+            this.typingTimeout = setTimeout(() => { this.isPartnerTyping = false; this.cdr.detectChanges(); }, 5000);
           }
           this.cdr.detectChanges();
         }
@@ -175,27 +154,44 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    this.channel.bind('pusher:subscription_succeeded', () => {
-      this.notifyPresence(true);
-    });
+    this.channel.bind('pusher:subscription_succeeded', () => { this.notifyPresence(true); });
+  }
+
+  onScroll() {
+    const element = this.myScrollContainer.nativeElement;
+    // Check if user is within 50px of the bottom
+    const atBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
+    if (atBottom) {
+      this.isUserAtBottom = true;
+      this.newMessagesCount = 0;
+    } else {
+      this.isUserAtBottom = false;
+    }
+  }
+
+  scrollToBottom(): void {
+    try {
+      this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight;
+      this.newMessagesCount = 0;
+      this.isUserAtBottom = true;
+    } catch (err) { }
+  }
+
+  collapseChat() { this.isChatVisible = false; this.notifyPresence(false); }
+  
+  notifyPresence(isActive: boolean) {
+    if (this.channel) { this.channel.trigger(isActive ? 'client-user-joined' : 'client-user-left', { user: this.userName }); }
   }
 
   syncOnArrival() {
     const partnerMsgs = this.messages.filter(m => m.user !== this.userName);
-    if (partnerMsgs.length > 0) {
-      this.markAsSeen(partnerMsgs[partnerMsgs.length - 1].id);
-    }
+    if (partnerMsgs.length > 0) { this.markAsSeen(partnerMsgs[partnerMsgs.length - 1].id); }
   }
 
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting && document.hasFocus()) {
-            this.markAsSeen(messageId);
-            observer.disconnect();
-          }
-        });
+        entries.forEach(entry => { if (entry.isIntersecting && document.hasFocus()) { this.markAsSeen(messageId); observer.disconnect(); } });
       }, { threshold: 0.5 });
       const lastMsg = document.querySelector('.message-item.other:last-child');
       if (lastMsg) observer.observe(lastMsg);
@@ -203,11 +199,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   markAsSeen(messageId: string) {
-    fetch('/api/seen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser })
-    });
+    fetch('/api/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser }) });
   }
 
   async loadHistory() {
@@ -219,7 +211,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
         this.messages = history.sort((a, b) => a.timestamp - b.timestamp);
         this.syncOnArrival();
         this.cdr.detectChanges();
-        setTimeout(() => this.scrollToBottom(), 200);
+        setTimeout(() => this.scrollToBottom(), 100);
       });
     } catch (e) { console.error(e); }
   }
@@ -232,25 +224,20 @@ export class AppComponent implements OnInit, AfterViewChecked {
     const text = this.newMessage;
     this.newMessage = '';
     this.cdr.detectChanges();
+    setTimeout(() => this.scrollToBottom(), 50);
     await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...msg, text }) });
   }
 
   onTyping() {
     if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
-    this.typingTimeout = setTimeout(() => {
-      if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: false });
-    }, 2000);
+    this.typingTimeout = setTimeout(() => { if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: false }); }, 2000);
   }
 
   async terminateOtherSessions(roomID: string) {
     await fetch('/api/terminate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID }) });
   }
 
-  ngAfterViewChecked() { this.scrollToBottom(); }
-  scrollToBottom(): void {
-    try { this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight; } catch (err) { }
-  }
-  
+  ngAfterViewChecked() { }
   trackByFn(index: number, item: any) { return item.id; }
 }
