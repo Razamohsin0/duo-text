@@ -48,14 +48,10 @@ export class AppComponent implements OnInit, AfterViewChecked {
       authEndpoint: '/api/pusher/auth'
     });
 
-    // Ensure partner is notified if the tab is closed
+    // Notify partner if the tab is closed
     window.addEventListener('beforeunload', () => this.collapseChat());
   }
 
-  /**
-   * Handles user login and chat expansion.
-   * Forces a history re-load and presence notification on every expansion.
-   */
   setUserName() {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
@@ -84,17 +80,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  /**
-   * Minimizes the chat portal and notifies the partner of inactivity.
-   */
   collapseChat() {
     this.isChatVisible = false;
     this.notifyPresence(false); 
   }
 
-  /**
-   * Triggers client events to sync presence across both users.
-   */
   notifyPresence(isActive: boolean) {
     if (this.channel) {
       this.channel.trigger(isActive ? 'client-user-joined' : 'client-user-left', { user: this.userName });
@@ -102,7 +92,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   setupBindings() {
-    // 1. Message Handling & Sorting
+    // 1. Message Handling
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
@@ -128,33 +118,27 @@ export class AppComponent implements OnInit, AfterViewChecked {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
           this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          
-          // User A sees User B joined, so User A pings back to confirm their own presence
           this.channel.trigger('client-presence-ping', { user: this.userName });
-          
           this.syncOnArrival(); 
           this.cdr.detectChanges();
         }
       });
     });
 
-    // 4. Bidirectional Handshake: Presence Ping (Pong/Ack)
+    // 4. Presence Ping (PONG)
     this.channel.bind('client-presence-ping', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
           this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          
-          // User B replies to User A's ping with an Acknowledgment
           this.channel.trigger('client-presence-ack', { user: this.userName });
-          
           this.syncOnArrival();
           this.cdr.detectChanges();
         }
       });
     });
 
-    // 5. Bidirectional Handshake: Presence Acknowledgment
+    // 5. Presence ACK
     this.channel.bind('client-presence-ack', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -165,7 +149,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 6. Partner Inactivity Handler
+    // 6. Inactivity Handler
     this.channel.bind('client-user-left', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -176,25 +160,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 7. Typing Indicators
-    this.channel.bind('client-typing', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.isPartnerTyping = data.isTyping;
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    // Notify presence once subscription is fully established
     this.channel.bind('pusher:subscription_succeeded', () => {
       this.notifyPresence(true);
     });
   }
 
-  /**
-   * Forces the "Seen" status for unread messages received while offline.
-   */
   syncOnArrival() {
     const partnerMsgs = this.messages.filter(m => m.user !== this.userName);
     if (partnerMsgs.length > 0) {
@@ -202,9 +172,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  /**
-   * Uses Intersection Observer to detect when a user scrolls to a new message.
-   */
   waitForVisibility(messageId: string) {
     setTimeout(() => {
       const observer = new IntersectionObserver((entries) => {
@@ -234,14 +201,12 @@ export class AppComponent implements OnInit, AfterViewChecked {
       const data = await res.json();
       this.ngZone.run(() => {
         let history = Array.isArray(data) ? data : [];
-        // Ensure strictly chronological order
         this.messages = history.sort((a, b) => a.timestamp - b.timestamp);
-        
         this.syncOnArrival(); 
         this.cdr.detectChanges();
         setTimeout(() => this.scrollToBottom(), 200);
       });
-    } catch (e) { console.error("Vault history error:", e); }
+    } catch (e) { console.error(e); }
   }
 
   async send() {

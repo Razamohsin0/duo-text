@@ -585,7 +585,16 @@
   display: flex; align-items: center; justify-content: center;
   z-index: 9999;
 }
+/* Ensure the status dot and text reflect activity colors correctly */
+.header-center-status span {
+  transition: color 0.3s, background-color 0.3s;
+}
 
+/* Add any specific styling for the synced/uplinked text here */
+.status-text-synced {
+  color: #111;
+  font-weight: 700;
+}
 .terminal-box {
   padding: 40px 30px;
   text-align: center;
