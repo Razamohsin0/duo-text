@@ -19,14 +19,14 @@ export class AppComponent implements OnInit, AfterViewChecked {
   connectionStatus: string | null = null;
   
   // UI & Visibility State
-  isChatVisible = false; // Controls collapse/expand without logout
+  isChatVisible = false;
   partnerOnline = false;
   partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
   
   // Messaging Data
   newMessage = '';
   messages: any[] = [];
-  seenMessages: Set<string> = new Set(); 
+  seenMessages: Set<string> = new Set();
   
   // Interaction State
   isPartnerTyping = false;
@@ -48,7 +48,6 @@ export class AppComponent implements OnInit, AfterViewChecked {
       authEndpoint: '/api/pusher/auth'
     });
 
-    // Notify partner if the tab is closed
     window.addEventListener('beforeunload', () => this.collapseChat());
   }
 
@@ -58,8 +57,8 @@ export class AppComponent implements OnInit, AfterViewChecked {
       
       if (this.userName === input) {
         this.isChatVisible = true;
-        this.notifyPresence(true); 
-        this.loadHistory(); 
+        this.notifyPresence(true);
+        this.loadHistory();
         return;
       }
 
@@ -82,7 +81,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
   collapseChat() {
     this.isChatVisible = false;
-    this.notifyPresence(false); 
+    this.notifyPresence(false);
   }
 
   notifyPresence(isActive: boolean) {
@@ -92,7 +91,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   setupBindings() {
-    // 1. Message Handling
+    // 1. Message Handling & Sorting
     this.channel.bind('new-message', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
@@ -112,20 +111,20 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 3. Bidirectional Handshake: User Joined (Ping)
+    // 3. Bidirectional Handshake: Ping
     this.channel.bind('client-user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
           this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
           this.channel.trigger('client-presence-ping', { user: this.userName });
-          this.syncOnArrival(); 
+          this.syncOnArrival();
           this.cdr.detectChanges();
         }
       });
     });
 
-    // 4. Presence Ping (PONG)
+    // 4. Bidirectional Handshake: Pong
     this.channel.bind('client-presence-ping', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -138,7 +137,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 5. Presence ACK
+    // 5. Bidirectional Handshake: Final Ack
     this.channel.bind('client-presence-ack', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -149,7 +148,23 @@ export class AppComponent implements OnInit, AfterViewChecked {
       });
     });
 
-    // 6. Inactivity Handler
+    // 6. Typing Indicator Binding
+    this.channel.bind('client-typing', (data: any) => {
+      this.ngZone.run(() => {
+        if (data.user !== this.userName) {
+          this.isPartnerTyping = data.isTyping;
+          if (this.typingTimeout) clearTimeout(this.typingTimeout);
+          if (data.isTyping) {
+            this.typingTimeout = setTimeout(() => {
+              this.isPartnerTyping = false;
+              this.cdr.detectChanges();
+            }, 5000);
+          }
+          this.cdr.detectChanges();
+        }
+      });
+    });
+
     this.channel.bind('client-user-left', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
@@ -202,7 +217,7 @@ export class AppComponent implements OnInit, AfterViewChecked {
       this.ngZone.run(() => {
         let history = Array.isArray(data) ? data : [];
         this.messages = history.sort((a, b) => a.timestamp - b.timestamp);
-        this.syncOnArrival(); 
+        this.syncOnArrival();
         this.cdr.detectChanges();
         setTimeout(() => this.scrollToBottom(), 200);
       });
@@ -212,24 +227,12 @@ export class AppComponent implements OnInit, AfterViewChecked {
   async send() {
     if (!this.newMessage.trim()) return;
     const msgId = `id-${Date.now()}`;
-    const msg = { 
-      id: msgId, 
-      user: this.userName, 
-      target: this.targetUser, 
-      text: this.newMessage, 
-      timestamp: Date.now() 
-    };
-    
+    const msg = { id: msgId, user: this.userName, target: this.targetUser, text: this.newMessage, timestamp: Date.now() };
     this.messages.push(msg);
-    const textToSend = this.newMessage;
+    const text = this.newMessage;
     this.newMessage = '';
     this.cdr.detectChanges();
-
-    await fetch('/api/chat', { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ ...msg, text: textToSend }) 
-    });
+    await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...msg, text }) });
   }
 
   onTyping() {
@@ -241,22 +244,13 @@ export class AppComponent implements OnInit, AfterViewChecked {
   }
 
   async terminateOtherSessions(roomID: string) {
-    await fetch('/api/terminate', { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID }) 
-    });
+    await fetch('/api/terminate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID }) });
   }
 
   ngAfterViewChecked() { this.scrollToBottom(); }
-  
   scrollToBottom(): void {
-    try { 
-      this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight; 
-    } catch (err) { }
+    try { this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight; } catch (err) { }
   }
   
-  trackByFn(index: number, item: any) {
-    return item.id;
-  }
+  trackByFn(index: number, item: any) { return item.id; }
 }
