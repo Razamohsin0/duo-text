@@ -4,15 +4,13 @@ const pusher = new Pusher({
   appId: "2117123", key: "f67a69ab8d352765a811", secret: "b092ee0e9a3a0c3278a2", cluster: "ap2", useTLS: true
 });
 
-// Example /api/terminate backend handler
 export default async function handler(req, res) {
-  const { userName, sessionId, roomID } = req.body;
+  const { id, viewer, target } = req.body;
+  const isElite = (viewer === 'user1' && target === 'user2') || (viewer === 'user2' && target === 'user1');
+  const roomID = `private-${isElite ? 'vault-user1-user2' : 'public-plaza'}`;
 
   try {
-    await pusher.trigger(roomID, 'terminate-session', { 
-      userName, 
-      sessionId 
-    });
+    await pusher.trigger(roomID, 'message-seen', { id });
     return res.status(200).json({ success: true });
   } catch (error) {
     return res.status(500).json({ error: error.message });
