@@ -116,7 +116,7 @@ export class AppComponent implements OnInit {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
+          this.partnerStatusText = `${data.user.toUpperCase()} // ACTIVE`;
           this.channel.trigger('client-presence-ack', { user: this.userName });
           this.cdr.detectChanges();
         }
@@ -127,7 +127,7 @@ export class AppComponent implements OnInit {
       this.ngZone.run(() => { 
         if (data.user !== this.userName) { 
           this.partnerOnline = true; 
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`; 
+          this.partnerStatusText = `${data.user.toUpperCase()} // ACTIVE`; 
           this.cdr.detectChanges(); 
         } 
       });
