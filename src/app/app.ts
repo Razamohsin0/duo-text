@@ -87,6 +87,7 @@ export class AppComponent implements OnInit {
           } else { 
             this.newMessagesCount++; 
           }
+          // Watch for visibility of newly arrived message
           if (this.isChatVisible) this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
@@ -94,14 +95,17 @@ export class AppComponent implements OnInit {
     });
 
     this.channel.bind('message-seen', (data: any) => { 
-      this.ngZone.run(() => { this.seenMessages.add(data.id); this.cdr.detectChanges(); }); 
+      this.ngZone.run(() => { 
+        this.seenMessages.add(data.id); 
+        this.cdr.detectChanges(); 
+      }); 
     });
 
     this.channel.bind('client-user-joined', (data: any) => {
       this.ngZone.run(() => {
         if (data.user !== this.userName) {
           this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
+          this.partnerStatusText = `${data.user.toUpperCase()} // ACTIVE`;
           this.channel.trigger('client-presence-ping', { user: this.userName });
           this.cdr.detectChanges();
         }
@@ -120,7 +124,13 @@ export class AppComponent implements OnInit {
     });
 
     this.channel.bind('client-presence-ack', (data: any) => {
-      this.ngZone.run(() => { if (data.user !== this.userName) { this.partnerOnline = true; this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`; this.cdr.detectChanges(); } });
+      this.ngZone.run(() => { 
+        if (data.user !== this.userName) { 
+          this.partnerOnline = true; 
+          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`; 
+          this.cdr.detectChanges(); 
+        } 
+      });
     });
 
     this.channel.bind('client-typing', (data: any) => {
@@ -134,17 +144,27 @@ export class AppComponent implements OnInit {
     });
 
     this.channel.bind('client-user-left', (data: any) => {
-      this.ngZone.run(() => { if (data.user !== this.userName) { this.partnerOnline = false; this.partnerStatusText = 'PARTNER INACTIVE'; this.cdr.detectChanges(); } });
+      this.ngZone.run(() => { 
+        if (data.user !== this.userName) { 
+          this.partnerOnline = false; 
+          this.partnerStatusText = 'PARTNER INACTIVE'; 
+          this.cdr.detectChanges(); 
+        } 
+      });
     });
 
     this.channel.bind('pusher:subscription_succeeded', () => { this.notifyPresence(true); });
   }
 
-  // --- NEWLY ADDED METHODS TO FIX TS2339 ---
+  // --- UPDATED VISIBILITY LOGIC ---
   waitForVisibility(messageId: string) {
     setTimeout(() => {
+      const msgElement = document.getElementById(messageId);
+      if (!msgElement || this.seenMessages.has(messageId)) return;
+
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
+          // If message is 50% visible and user is focused on the tab
           if (entry.isIntersecting && document.hasFocus()) {
             this.markAsSeen(messageId);
             observer.disconnect();
@@ -152,9 +172,8 @@ export class AppComponent implements OnInit {
         });
       }, { threshold: 0.5 });
 
-      const lastMsg = document.querySelector('.message-item.other:last-child');
-      if (lastMsg) observer.observe(lastMsg);
-    }, 200);
+      observer.observe(msgElement);
+    }, 500); 
   }
 
   markAsSeen(messageId: string) {
@@ -164,7 +183,6 @@ export class AppComponent implements OnInit {
       body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser })
     });
   }
-  // ----------------------------------------
 
   handleTermination() {
     this.sessionTerminated = true;
@@ -188,7 +206,12 @@ export class AppComponent implements OnInit {
   onScroll() {
     const element = this.myScrollContainer.nativeElement;
     const atBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 60;
-    if (atBottom) { this.isUserAtBottom = true; this.newMessagesCount = 0; } else { this.isUserAtBottom = false; }
+    if (atBottom) { 
+      this.isUserAtBottom = true; 
+      this.newMessagesCount = 0; 
+    } else { 
+      this.isUserAtBottom = false; 
+    }
   }
 
   scrollToBottom(): void {
@@ -200,7 +223,10 @@ export class AppComponent implements OnInit {
     } catch (err) { }
   }
 
-  collapseChat() { this.isChatVisible = false; this.notifyPresence(false); }
+  collapseChat() { 
+    this.isChatVisible = false; 
+    this.notifyPresence(false); 
+  }
   
   notifyPresence(isActive: boolean) { 
     if (this.channel) { 
@@ -215,26 +241,47 @@ export class AppComponent implements OnInit {
       this.ngZone.run(() => {
         this.messages = (Array.isArray(data) ? data : []).sort((a, b) => a.timestamp - b.timestamp);
         this.cdr.detectChanges();
-        setTimeout(() => this.scrollToBottom(), 100);
+        
+        // Mark existing messages for visibility tracking
+        setTimeout(() => {
+          this.scrollToBottom();
+          this.messages.forEach(msg => {
+            if (msg.user !== this.userName) {
+              this.waitForVisibility(msg.id);
+            }
+          });
+        }, 300);
       });
     } catch (e) { console.error(e); }
   }
 
   async send() {
     if (!this.newMessage.trim()) return;
-    const msg = { id: `id-${Date.now()}`, user: this.userName, target: this.targetUser, text: this.newMessage, timestamp: Date.now() };
+    const msg = { 
+      id: `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`, 
+      user: this.userName, 
+      target: this.targetUser, 
+      text: this.newMessage, 
+      timestamp: Date.now() 
+    };
     this.messages.push(msg);
     const text = this.newMessage;
     this.newMessage = '';
     this.cdr.detectChanges();
     setTimeout(() => this.scrollToBottom(), 50);
-    await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...msg, text }) });
+    await fetch('/api/chat', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ ...msg, text }) 
+    });
   }
 
   onTyping() {
     if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
-    this.typingTimeout = setTimeout(() => { if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: false }); }, 2000);
+    this.typingTimeout = setTimeout(() => { 
+      if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: false }); 
+    }, 2000);
   }
 
   trackByFn(index: number, item: any) { return item.id; }
