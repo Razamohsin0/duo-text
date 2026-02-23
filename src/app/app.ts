@@ -61,167 +61,53 @@ export class AppComponent implements OnInit, AfterViewChecked {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
           this.messages.push(data);
           this.messages.sort((a, b) => a.timestamp - b.timestamp);
-          if (this.isUserAtBottom) {
-            setTimeout(() => this.scrollToBottom(), 50);
-          } else {
-            this.newMessagesCount++;
-          }
+          if (this.isUserAtBottom) { setTimeout(() => this.scrollToBottom(), 50); } else { this.newMessagesCount++; }
           if (this.isChatVisible) this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
       });
     });
 
-    this.channel.bind('message-seen', (data: any) => {
-      this.ngZone.run(() => { this.seenMessages.add(data.id); this.cdr.detectChanges(); });
-    });
-
-    this.channel.bind('client-user-joined', (data: any) => {
+    // CRITICAL: Session Termination Binding
+    this.channel.bind('terminate-session', (data: any) => {
       this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          this.channel.trigger('client-presence-ping', { user: this.userName });
-          this.syncOnArrival();
+        if (data.userName === this.userName && data.sessionId !== this.currentSessionId) {
+          this.sessionTerminated = true;
+          this.pusher.unsubscribe(this.channel.name);
           this.cdr.detectChanges();
         }
       });
     });
 
-    this.channel.bind('client-presence-ping', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          this.channel.trigger('client-presence-ack', { user: this.userName });
-          this.syncOnArrival();
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    this.channel.bind('client-presence-ack', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = true;
-          this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`;
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    this.channel.bind('client-typing', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.isPartnerTyping = data.isTyping;
-          if (this.typingTimeout) clearTimeout(this.typingTimeout);
-          if (data.isTyping) {
-            this.typingTimeout = setTimeout(() => { this.isPartnerTyping = false; this.cdr.detectChanges(); }, 5000);
-          }
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
-    this.channel.bind('client-user-left', (data: any) => {
-      this.ngZone.run(() => {
-        if (data.user !== this.userName) {
-          this.partnerOnline = false;
-          this.partnerStatusText = 'PARTNER INACTIVE';
-          this.cdr.detectChanges();
-        }
-      });
-    });
-
+    this.channel.bind('message-seen', (data: any) => { this.ngZone.run(() => { this.seenMessages.add(data.id); this.cdr.detectChanges(); }); });
+    this.channel.bind('client-user-joined', (data: any) => { this.ngZone.run(() => { if (data.user !== this.userName) { this.partnerOnline = true; this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`; this.channel.trigger('client-presence-ping', { user: this.userName }); this.syncOnArrival(); this.cdr.detectChanges(); } }); });
+    this.channel.bind('client-presence-ping', (data: any) => { this.ngZone.run(() => { if (data.user !== this.userName) { this.partnerOnline = true; this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`; this.channel.trigger('client-presence-ack', { user: this.userName }); this.syncOnArrival(); this.cdr.detectChanges(); } }); });
+    this.channel.bind('client-presence-ack', (data: any) => { this.ngZone.run(() => { if (data.user !== this.userName) { this.partnerOnline = true; this.partnerStatusText = `${data.user.toUpperCase()} // LINK ACTIVE`; this.cdr.detectChanges(); } }); });
+    this.channel.bind('client-typing', (data: any) => { this.ngZone.run(() => { if (data.user !== this.userName) { const wasAtBottom = this.isUserAtBottom; this.isPartnerTyping = data.isTyping; if (data.isTyping && wasAtBottom) { setTimeout(() => this.scrollToBottom(), 50); } if (this.typingTimeout) clearTimeout(this.typingTimeout); if (data.isTyping) { this.typingTimeout = setTimeout(() => { this.isPartnerTyping = false; this.cdr.detectChanges(); }, 5000); } this.cdr.detectChanges(); } }); });
+    this.channel.bind('client-user-left', (data: any) => { this.ngZone.run(() => { if (data.user !== this.userName) { this.partnerOnline = false; this.partnerStatusText = 'PARTNER INACTIVE'; this.cdr.detectChanges(); } }); });
     this.channel.bind('pusher:subscription_succeeded', () => { this.notifyPresence(true); });
   }
 
-  onScroll() {
-    const element = this.myScrollContainer.nativeElement;
-    const atBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
-    if (atBottom) {
-      this.isUserAtBottom = true;
-      this.newMessagesCount = 0;
-      this.syncOnArrival(); // Force sync when user reaches bottom manually
-    } else {
-      this.isUserAtBottom = false;
-    }
-  }
-
-  scrollToBottom(): void {
+  async terminateOtherSessions(roomID: string) {
     try {
-      this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight;
-      this.newMessagesCount = 0;
-      this.isUserAtBottom = true;
-      // CRITICAL FIX: Mark messages as seen the moment the badge is clicked
-      this.syncOnArrival(); 
-      this.cdr.detectChanges();
-    } catch (err) { }
+      await fetch('/api/terminate', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID: roomID }) 
+      });
+    } catch (e) { console.error("Termination trigger failed", e); }
   }
 
+  onScroll() { const element = this.myScrollContainer.nativeElement; const atBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 60; if (atBottom) { this.isUserAtBottom = true; this.newMessagesCount = 0; this.syncOnArrival(); } else { this.isUserAtBottom = false; } }
+  scrollToBottom(): void { try { this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight; this.newMessagesCount = 0; this.isUserAtBottom = true; this.syncOnArrival(); this.cdr.detectChanges(); } catch (err) { } }
   collapseChat() { this.isChatVisible = false; this.notifyPresence(false); }
   notifyPresence(isActive: boolean) { if (this.channel) { this.channel.trigger(isActive ? 'client-user-joined' : 'client-user-left', { user: this.userName }); } }
-  
-  // Improved sync to ensure 'Synced' label updates reliably
-  syncOnArrival() {
-    if (this.messages.length > 0) {
-      const partnerMsgs = this.messages.filter(m => m.user !== this.userName);
-      if (partnerMsgs.length > 0) {
-        this.markAsSeen(partnerMsgs[partnerMsgs.length - 1].id);
-      }
-    }
-  }
-
-  waitForVisibility(messageId: string) {
-    setTimeout(() => {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => { if (entry.isIntersecting && document.hasFocus()) { this.markAsSeen(messageId); observer.disconnect(); } });
-      }, { threshold: 0.5 });
-      const lastMsg = document.querySelector('.message-item.other:last-child');
-      if (lastMsg) observer.observe(lastMsg);
-    }, 200);
-  }
-
-  markAsSeen(messageId: string) {
-    fetch('/api/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser }) });
-  }
-
-  async loadHistory() {
-    try {
-      const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`);
-      const data = await res.json();
-      this.ngZone.run(() => {
-        let history = Array.isArray(data) ? data : [];
-        this.messages = history.sort((a, b) => a.timestamp - b.timestamp);
-        this.syncOnArrival();
-        this.cdr.detectChanges();
-        setTimeout(() => this.scrollToBottom(), 100);
-      });
-    } catch (e) { console.error(e); }
-  }
-
-  async send() {
-    if (!this.newMessage.trim()) return;
-    const msgId = `id-${Date.now()}`;
-    const msg = { id: msgId, user: this.userName, target: this.targetUser, text: this.newMessage, timestamp: Date.now() };
-    this.messages.push(msg);
-    const text = this.newMessage;
-    this.newMessage = '';
-    this.cdr.detectChanges();
-    setTimeout(() => this.scrollToBottom(), 50);
-    await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...msg, text }) });
-  }
-
-  onTyping() {
-    if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: true });
-    if (this.typingTimeout) clearTimeout(this.typingTimeout);
-    this.typingTimeout = setTimeout(() => { if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: false }); }, 2000);
-  }
-
-  async terminateOtherSessions(roomID: string) {
-    await fetch('/api/terminate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userName: this.userName, sessionId: this.currentSessionId, roomID }) });
-  }
-
+  syncOnArrival() { if (this.messages.length > 0) { const partnerMsgs = this.messages.filter(m => m.user !== this.userName); if (partnerMsgs.length > 0) { this.markAsSeen(partnerMsgs[partnerMsgs.length - 1].id); } } }
+  waitForVisibility(messageId: string) { setTimeout(() => { const observer = new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting && document.hasFocus()) { this.markAsSeen(messageId); observer.disconnect(); } }); }, { threshold: 0.5 }); const lastMsg = document.querySelector('.message-item.other:last-child'); if (lastMsg) observer.observe(lastMsg); }, 200); }
+  markAsSeen(messageId: string) { fetch('/api/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: messageId, viewer: this.userName, target: this.targetUser }) }); }
+  async loadHistory() { try { const res = await fetch(`/api/history?userA=${this.userName}&userB=${this.targetUser}`); const data = await res.json(); this.ngZone.run(() => { let history = Array.isArray(data) ? data : []; this.messages = history.sort((a, b) => a.timestamp - b.timestamp); this.syncOnArrival(); this.cdr.detectChanges(); setTimeout(() => this.scrollToBottom(), 100); }); } catch (e) { console.error(e); } }
+  async send() { if (!this.newMessage.trim()) return; const msgId = `id-${Date.now()}`; const msg = { id: msgId, user: this.userName, target: this.targetUser, text: this.newMessage, timestamp: Date.now() }; this.messages.push(msg); const text = this.newMessage; this.newMessage = ''; this.cdr.detectChanges(); setTimeout(() => this.scrollToBottom(), 50); await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...msg, text }) }); }
+  onTyping() { if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: true }); if (this.typingTimeout) clearTimeout(this.typingTimeout); this.typingTimeout = setTimeout(() => { if (this.channel) this.channel.trigger('client-typing', { user: this.userName, isTyping: false }); }, 2000); }
   ngAfterViewChecked() { }
   trackByFn(index: number, item: any) { return item.id; }
 }
