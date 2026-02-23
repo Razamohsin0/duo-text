@@ -12,55 +12,37 @@ import Pusher from 'pusher-js';
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('scrollMe') private myScrollContainer!: ElementRef;
 
-  // Identity & Connection
   userName = '';
   targetUser = ''; 
   nameInput = '';
   connectionStatus: string | null = null;
-  
-  // UI State
-  isChatVisible = false;
+  isChatVisible = false; 
   partnerOnline = false;
   partnerStatusText = 'WAITING FOR ENCRYPTED LINK...';
-  
-  // Messaging Data
   newMessage = '';
   messages: any[] = [];
-  seenMessages: Set<string> = new Set();
-  
-  // Interaction & Scroll State
+  seenMessages: Set<string> = new Set(); 
   isPartnerTyping = false;
   typingTimeout: any;
-  newMessagesCount = 0;
-  isUserAtBottom = true;
-  
-  // Security
   sessionTerminated = false;
   currentSessionId = Math.random().toString(36).substring(7);
-  
+  newMessagesCount = 0;
+  isUserAtBottom = true;
+
   private pusher: any;
   private channel: any;
 
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit() {
-    this.pusher = new Pusher('f67a69ab8d352765a811', { 
-      cluster: 'ap2',
-      forceTLS: true,
-      authEndpoint: '/api/pusher/auth'
-    });
+    this.pusher = new Pusher('f67a69ab8d352765a811', { cluster: 'ap2', forceTLS: true, authEndpoint: '/api/pusher/auth' });
     window.addEventListener('beforeunload', () => this.collapseChat());
   }
 
   setUserName() {
     if (this.nameInput.trim()) {
       const input = this.nameInput.trim().toLowerCase();
-      if (this.userName === input) {
-        this.isChatVisible = true;
-        this.notifyPresence(true);
-        this.loadHistory();
-        return;
-      }
+      if (this.userName === input) { this.isChatVisible = true; this.notifyPresence(true); this.loadHistory(); return; }
       this.userName = input;
       this.isChatVisible = true;
       let roomID = (this.userName === 'user1' || this.userName === 'user2') ? 'private-vault-user1-user2' : 'private-public-plaza';
@@ -79,14 +61,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
         if (data.user !== this.userName && !this.messages.find(m => m.id === data.id)) {
           this.messages.push(data);
           this.messages.sort((a, b) => a.timestamp - b.timestamp);
-          
-          // Logic for Auto-scroll vs Notification Badge
           if (this.isUserAtBottom) {
             setTimeout(() => this.scrollToBottom(), 50);
           } else {
             this.newMessagesCount++;
           }
-          
           if (this.isChatVisible) this.waitForVisibility(data.id);
         }
         this.cdr.detectChanges();
@@ -159,11 +138,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
 
   onScroll() {
     const element = this.myScrollContainer.nativeElement;
-    // Check if user is within 50px of the bottom
     const atBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
     if (atBottom) {
       this.isUserAtBottom = true;
       this.newMessagesCount = 0;
+      this.syncOnArrival(); // Force sync when user reaches bottom manually
     } else {
       this.isUserAtBottom = false;
     }
@@ -174,18 +153,23 @@ export class AppComponent implements OnInit, AfterViewChecked {
       this.myScrollContainer.nativeElement.scrollTop = this.myScrollContainer.nativeElement.scrollHeight;
       this.newMessagesCount = 0;
       this.isUserAtBottom = true;
+      // CRITICAL FIX: Mark messages as seen the moment the badge is clicked
+      this.syncOnArrival(); 
+      this.cdr.detectChanges();
     } catch (err) { }
   }
 
   collapseChat() { this.isChatVisible = false; this.notifyPresence(false); }
+  notifyPresence(isActive: boolean) { if (this.channel) { this.channel.trigger(isActive ? 'client-user-joined' : 'client-user-left', { user: this.userName }); } }
   
-  notifyPresence(isActive: boolean) {
-    if (this.channel) { this.channel.trigger(isActive ? 'client-user-joined' : 'client-user-left', { user: this.userName }); }
-  }
-
+  // Improved sync to ensure 'Synced' label updates reliably
   syncOnArrival() {
-    const partnerMsgs = this.messages.filter(m => m.user !== this.userName);
-    if (partnerMsgs.length > 0) { this.markAsSeen(partnerMsgs[partnerMsgs.length - 1].id); }
+    if (this.messages.length > 0) {
+      const partnerMsgs = this.messages.filter(m => m.user !== this.userName);
+      if (partnerMsgs.length > 0) {
+        this.markAsSeen(partnerMsgs[partnerMsgs.length - 1].id);
+      }
+    }
   }
 
   waitForVisibility(messageId: string) {
